@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_playlist.dart';
+import '../models/song.dart';
 import '../services/playlist_service.dart';
+import '../services/music_player_service.dart';
+import '../services/api_service.dart';
 import 'downloaded_songs_screen.dart';
+import 'user_playlist_details_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key});
+  final MusicPlayerService playerService;
+
+  const LibraryScreen({
+    super.key,
+    required this.playerService,
+  });
 
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
@@ -13,7 +22,9 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   late PlaylistService _playlistService;
+  final ApiService _apiService = ApiService();
   List<UserPlaylist> _playlists = [];
+  Map<String, String> _playlistImages = {};
 
   @override
   void initState() {
@@ -31,6 +42,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
     setState(() {
       _playlists = _playlistService.getUserPlaylists();
     });
+    _loadPlaylistImages();
+  }
+
+  Future<void> _loadPlaylistImages() async {
+    for (final playlist in _playlists) {
+      if (playlist.songIds.isNotEmpty) {
+        try {
+          final songs = await _apiService.getPlaylistSongs([playlist.songIds[0]]);
+          if (songs.isNotEmpty) {
+            setState(() {
+              _playlistImages[playlist.id] = songs[0].image;
+            });
+          }
+        } catch (e) {
+          print('Error loading playlist image: $e');
+        }
+      }
+    }
   }
 
   void _showCreatePlaylistDialog() {
@@ -128,15 +157,41 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFFF5D505),
-                        child: Text(
-                          playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
-                          style: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: _playlistImages[playlist.id] != null
+                            ? Image.network(
+                                _playlistImages[playlist.id]!,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 56,
+                                    height: 56,
+                                    color: const Color(0xFFF5D505),
+                                    child: Text(
+                                      playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              )
+                            : Container(
+                                width: 56,
+                                height: 56,
+                                color: const Color(0xFFF5D505),
+                                child: Text(
+                                  playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
                       ),
                       title: Text(
                         playlist.name,
@@ -144,14 +199,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Created: ${playlist.createdAt.toString().split('.')[0]}'),
-                          Text('Last Updated: ${playlist.lastUpdated.toString().split('.')[0]}'),
-                          Text('Songs: ${playlist.songIds.length}'),
-                        ],
-                      ),
+                      subtitle: Text('${playlist.songIds.length} songs'),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () async {
@@ -160,7 +208,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         },
                       ),
                       onTap: () {
-                        // TODO: Navigate to playlist detail screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => UserPlaylistDetailsScreen(
+                              playlist: playlist,
+                              playerService: widget.playerService,
+                            ),
+                          ),
+                        );
                       },
                     ),
                   );

@@ -3,16 +3,19 @@ import '../models/playlist.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
 import '../services/playlist_cache_service.dart';
+import '../services/playlist_service.dart';
 import '../screens/playlist_details_screen.dart';
 
 class PlaylistCard extends StatefulWidget {
   final String playlistUrl;
   final MusicPlayerService playerService;
+  final PlaylistService playlistService;
 
   const PlaylistCard({
     Key? key,
     required this.playlistUrl,
     required this.playerService,
+    required this.playlistService,
   }) : super(key: key);
 
   @override
@@ -96,6 +99,7 @@ class _PlaylistCardState extends State<PlaylistCard> {
               playerService: widget.playerService,
               playlistUrl: widget.playlistUrl,
               initialPlaylist: _playlist,
+              playlistService: widget.playlistService,
             ),
           ),
         );

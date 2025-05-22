@@ -4,15 +4,19 @@ import '../models/song.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
 import '../services/download_service.dart';
+import '../services/playlist_service.dart';
+import 'playlist_selection_dialog.dart';
 
 class PlaylistSection extends StatefulWidget {
   final MusicPlayerService playerService;
   final String playlistUrl;
+  final PlaylistService playlistService;
 
   const PlaylistSection({
     Key? key,
     required this.playerService,
     required this.playlistUrl,
+    required this.playlistService,
   }) : super(key: key);
 
   @override
@@ -91,6 +95,16 @@ class _PlaylistSectionState extends State<PlaylistSection> {
         );
       }
     }
+  }
+
+  void _showAddToPlaylistDialog(Song song) {
+    showDialog(
+      context: context,
+      builder: (context) => PlaylistSelectionDialog(
+        playlistService: widget.playlistService,
+        songId: song.id,
+      ),
+    );
   }
 
   @override
@@ -214,6 +228,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                     }
                   } else if (value == 'download') {
                     await _handleDownload(song);
+                  } else if (value == 'add_to_playlist') {
+                    _showAddToPlaylistDialog(song);
                   }
                 },
                 itemBuilder: (context) => [
@@ -228,6 +244,10 @@ class _PlaylistSectionState extends State<PlaylistSection> {
                   PopupMenuItem(
                     value: 'download',
                     child: Text(isDownloaded ? 'Downloaded' : 'Download'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'add_to_playlist',
+                    child: Text('Add to Playlist'),
                   ),
                 ],
               ),

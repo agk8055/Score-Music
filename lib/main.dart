@@ -11,6 +11,7 @@ import 'services/music_player_service.dart';
 import 'services/play_history_service.dart';
 import 'services/search_cache_service.dart';
 import 'services/api_service.dart';
+import 'services/playlist_service.dart';
 import 'widgets/music_controller.dart';
 import 'widgets/base_scaffold.dart';
 import 'models/song.dart';
@@ -110,6 +111,7 @@ class MyApp extends StatelessWidget {
     final playerService = MusicPlayerService(historyService);
     final searchCacheService = SearchCacheService(prefs);
     final searchStateProvider = SearchStateProvider(searchCacheService);
+    final playlistService = PlaylistService(prefs);
     
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -141,6 +143,7 @@ class MyApp extends StatelessWidget {
         historyService: historyService,
         searchCacheService: searchCacheService,
         searchStateProvider: searchStateProvider,
+        playlistService: playlistService,
       ),
     );
   }
@@ -151,6 +154,7 @@ class MyHomePage extends StatefulWidget {
   final PlayHistoryService historyService;
   final SearchCacheService searchCacheService;
   final SearchStateProvider searchStateProvider;
+  final PlaylistService playlistService;
   
   const MyHomePage({
     super.key, 
@@ -158,6 +162,7 @@ class MyHomePage extends StatefulWidget {
     required this.historyService,
     required this.searchCacheService,
     required this.searchStateProvider,
+    required this.playlistService,
   });
 
   @override
@@ -177,6 +182,12 @@ class _MyHomePageState extends State<MyHomePage> {
     switch (_selectedIndex) {
       case 0:
         return AppBar(
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           title: const Text(
             'Home',
             style: TextStyle(
@@ -188,6 +199,12 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       case 1:
         return AppBar(
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           title: const Text(
             'Search',
             style: TextStyle(
@@ -199,6 +216,12 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       case 2:
         return AppBar(
+          leading: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           title: const Text(
             'Library',
             style: TextStyle(
@@ -208,10 +231,10 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
         );
-      default:
+      case 3:
         return AppBar(
           title: const Text(
-            'Score',
+            'Settings',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -219,6 +242,8 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
         );
+      default:
+        return AppBar();
     }
   }
 
@@ -228,15 +253,22 @@ class _MyHomePageState extends State<MyHomePage> {
         return HomeScreen(
           playerService: widget.playerService,
           historyService: widget.historyService,
+          playlistService: widget.playlistService,
         );
       case 1:
         return SearchScreen(
           playerService: widget.playerService,
-          searchCacheService: widget.searchCacheService,
           searchStateProvider: widget.searchStateProvider,
+          searchCacheService: widget.searchCacheService,
         );
       case 2:
-        return const LibraryScreen();
+        return LibraryScreen(
+          playerService: widget.playerService,
+        );
+      case 3:
+        return SettingsScreen(
+          historyService: widget.historyService,
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -247,6 +279,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return BaseScaffold(
       playerService: widget.playerService,
       appBar: _buildAppBar(),
+      body: _buildBody(),
       drawer: Drawer(
         backgroundColor: const Color(0xFF1A1A1A),
         child: ListView(
@@ -254,7 +287,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             DrawerHeader(
               decoration: const BoxDecoration(
-                color: Color(0xFF1A1A1A),
+                color: Color(0xFFF5D505),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,39 +295,59 @@ class _MyHomePageState extends State<MyHomePage> {
                   const Text(
                     'Score',
                     style: TextStyle(
-                      fontSize: 28,
+                      color: Colors.black,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFF5D505),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Version 1.0.0',
+                    style: TextStyle(
+                      color: Colors.black.withOpacity(0.7),
+                      fontSize: 14,
                     ),
                   ),
                 ],
               ),
             ),
             ListTile(
-              leading: const Icon(
-                Icons.library_music,
-                color: Color(0xFFF5D505),
-              ),
-              title: const Text(
-                'Library',
-                style: TextStyle(color: Colors.white),
-              ),
+              leading: const Icon(Icons.home_outlined, color: Colors.white),
+              title: const Text('Home', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 0,
               onTap: () {
-                Navigator.pop(context);
                 setState(() {
-                  _selectedIndex = 2;
+                  _selectedIndex = 0;
                 });
+                Navigator.pop(context);
               },
             ),
             ListTile(
-              leading: const Icon(
-                Icons.settings,
-                color: Color(0xFFF5D505),
-              ),
-              title: const Text(
-                'Settings',
-                style: TextStyle(color: Colors.white),
-              ),
+              leading: const Icon(Icons.search_outlined, color: Colors.white),
+              title: const Text('Search', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 1,
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 1;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.library_music_outlined, color: Colors.white),
+              title: const Text('Library', style: TextStyle(color: Colors.white)),
+              selected: _selectedIndex == 2,
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 2;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(color: Colors.white24),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined, color: Colors.white),
+              title: const Text('Settings', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -307,16 +360,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-            const Divider(color: Colors.grey),
             ListTile(
-              leading: const Icon(
-                Icons.info,
-                color: Color(0xFFF5D505),
-              ),
-              title: const Text(
-                'About',
-                style: TextStyle(color: Colors.white),
-              ),
+              leading: const Icon(Icons.info_outline, color: Colors.white),
+              title: const Text('About', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -330,10 +376,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      body: _buildBody(),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
@@ -342,15 +385,18 @@ class _MyHomePageState extends State<MyHomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.search),
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search),
             label: 'Search',
           ),
           NavigationDestination(
-            icon: Icon(Icons.library_music),
+            icon: Icon(Icons.library_music_outlined),
+            selectedIcon: Icon(Icons.library_music),
             label: 'Library',
           ),
         ],

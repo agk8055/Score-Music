@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../services/music_player_service.dart';
+import '../services/playlist_service.dart';
 import 'playlist_card.dart';
 
 class PlaylistCategorySection extends StatefulWidget {
   final MusicPlayerService playerService;
+  final PlaylistService playlistService;
   final String title;
   final List<String> playlistUrls;
 
   const PlaylistCategorySection({
     Key? key,
     required this.playerService,
+    required this.playlistService,
     required this.title,
     required this.playlistUrls,
   }) : super(key: key);
@@ -44,6 +47,7 @@ class _PlaylistCategorySectionState extends State<PlaylistCategorySection> {
               return PlaylistCard(
                 playlistUrl: widget.playlistUrls[index],
                 playerService: widget.playerService,
+                playlistService: widget.playlistService,
               );
             },
           ),

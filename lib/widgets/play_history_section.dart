@@ -5,17 +5,20 @@ import '../models/album.dart';
 import '../models/playlist.dart';
 import '../services/play_history_service.dart';
 import '../services/music_player_service.dart';
+import '../services/playlist_service.dart';
 import '../screens/album_details_screen.dart';
 import '../screens/playlist_details_screen.dart';
 
 class PlayHistorySection extends StatelessWidget {
   final PlayHistoryService historyService;
   final MusicPlayerService playerService;
+  final PlaylistService playlistService;
 
   const PlayHistorySection({
     Key? key,
     required this.historyService,
     required this.playerService,
+    required this.playlistService,
   }) : super(key: key);
 
   void _handleItemTap(BuildContext context, PlayHistoryItem item) {
@@ -47,6 +50,7 @@ class PlayHistorySection extends StatelessWidget {
                 playlistUrl: item.playlist!.url,
                 playerService: playerService,
                 initialPlaylist: item.playlist,
+                playlistService: playlistService,
               ),
             ),
           );

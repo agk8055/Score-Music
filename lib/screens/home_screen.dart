@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/music_player_service.dart';
 import '../services/play_history_service.dart';
+import '../services/playlist_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/play_history_section.dart';
 import '../widgets/playlist_category_section.dart';
@@ -8,11 +9,13 @@ import '../widgets/playlist_category_section.dart';
 class HomeScreen extends StatelessWidget {
   final MusicPlayerService playerService;
   final PlayHistoryService historyService;
+  final PlaylistService playlistService;
 
   const HomeScreen({
     Key? key,
     required this.playerService,
     required this.historyService,
+    required this.playlistService,
   }) : super(key: key);
 
   @override
@@ -22,9 +25,11 @@ class HomeScreen extends StatelessWidget {
         PlayHistorySection(
           historyService: historyService,
           playerService: playerService,
+          playlistService: playlistService,
         ),
         PlaylistCategorySection(
           playerService: playerService,
+          playlistService: playlistService,
           title: 'Tamil ',
           playlistUrls: [
             'https://www.jiosaavn.com/featured/top-kuthu-tamil/CNVzQf7lvT8wkg5tVhI3fw__',
@@ -34,6 +39,7 @@ class HomeScreen extends StatelessWidget {
         ),
         PlaylistCategorySection(
           playerService: playerService,
+          playlistService: playlistService,
           title: 'Malayalam ',
           playlistUrls: [
             'https://www.jiosaavn.com/featured/chaya-friends-club/yO,WwRUN3CHfemJ68FuXsA__',
@@ -43,6 +49,7 @@ class HomeScreen extends StatelessWidget {
         ),
         PlaylistCategorySection(
           playerService: playerService,
+          playlistService: playlistService,
           title: 'Other ',
           playlistUrls: [
             'https://www.jiosaavn.com/featured/trending-today/I3kvhipIy73uCJW60TJk1Q__',
