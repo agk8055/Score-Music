@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
+import '../services/download_service.dart';
 import '../models/song.dart';
 import '../screens/queue_screen.dart';
 import '../screens/now_playing_screen.dart';
@@ -252,7 +253,51 @@ class MusicController extends StatelessWidget {
                                 size: 24,
                               ),
                               onPressed: () {
-                                // TODO: Implement menu functionality
+                                showModalBottomSheet(
+                                  context: context,
+                                  builder: (context) => Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      StreamBuilder<bool>(
+                                        stream: Stream.fromFuture(DownloadService().isDownloaded(song)),
+                                        builder: (context, snapshot) {
+                                          final isDownloaded = snapshot.data ?? false;
+                                          return ListTile(
+                                            leading: Icon(
+                                              isDownloaded ? Icons.download_done : Icons.download,
+                                              color: const Color(0xFFF5D505),
+                                            ),
+                                            title: Text(isDownloaded ? 'Downloaded' : 'Download'),
+                                            onTap: () async {
+                                              Navigator.pop(context);
+                                              if (!isDownloaded) {
+                                                try {
+                                                  await DownloadService().downloadSong(
+                                                    song,
+                                                    onProgress: (progress) {
+                                                      // TODO: Show download progress
+                                                    },
+                                                  );
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text('Song downloaded successfully'),
+                                                    ),
+                                                  );
+                                                } catch (e) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Error downloading song: $e'),
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
                               },
                             ),
                           ],

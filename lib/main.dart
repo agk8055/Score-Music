@@ -6,6 +6,7 @@ import 'screens/search_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/library_screen.dart';
 import 'services/music_player_service.dart';
 import 'services/play_history_service.dart';
 import 'services/search_cache_service.dart';
@@ -199,7 +200,7 @@ class _MyHomePageState extends State<MyHomePage> {
       case 2:
         return AppBar(
           title: const Text(
-            'Settings',
+            'Library',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -235,9 +236,7 @@ class _MyHomePageState extends State<MyHomePage> {
           searchStateProvider: widget.searchStateProvider,
         );
       case 2:
-        return SettingsScreen(
-          historyService: widget.historyService,
-        );
+        return const LibraryScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -270,6 +269,22 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ],
               ),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.library_music,
+                color: Color(0xFFF5D505),
+              ),
+              title: const Text(
+                'Library',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _selectedIndex = 2;
+                });
+              },
             ),
             ListTile(
               leading: const Icon(
@@ -333,6 +348,10 @@ class _MyHomePageState extends State<MyHomePage> {
           NavigationDestination(
             icon: Icon(Icons.search),
             label: 'Search',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.library_music),
+            label: 'Library',
           ),
         ],
       ),

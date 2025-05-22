@@ -3,6 +3,7 @@ import '../models/playlist.dart';
 import '../models/song.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
+import '../services/download_service.dart';
 
 class PlaylistSection extends StatefulWidget {
   final MusicPlayerService playerService;
@@ -20,10 +21,12 @@ class PlaylistSection extends StatefulWidget {
 
 class _PlaylistSectionState extends State<PlaylistSection> {
   final ApiService _apiService = ApiService();
+  final DownloadService _downloadService = DownloadService();
   Playlist? _playlist;
   List<Song> _songs = [];
   bool _isLoading = true;
   String? _error;
+  Map<String, bool> _downloadedSongs = {};
 
   @override
   void initState() {
@@ -41,6 +44,11 @@ class _PlaylistSectionState extends State<PlaylistSection> {
       final playlist = await _apiService.getPlaylistDetails(widget.playlistUrl);
       final songs = await _apiService.getPlaylistSongs(playlist.contentList);
 
+      // Check download status for all songs
+      for (var song in songs) {
+        _downloadedSongs[song.id] = await _downloadService.isDownloaded(song);
+      }
+
       setState(() {
         _playlist = playlist;
         _songs = songs;
@@ -51,6 +59,37 @@ class _PlaylistSectionState extends State<PlaylistSection> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleDownload(Song song) async {
+    try {
+      if (!(_downloadedSongs[song.id] ?? false)) {
+        await _downloadService.downloadSong(
+          song,
+          onProgress: (progress) {
+            // TODO: Show download progress
+          },
+        );
+        setState(() {
+          _downloadedSongs[song.id] = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Song downloaded successfully'),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading song: $e'),
+          ),
+        );
+      }
     }
   }
 
@@ -130,6 +169,8 @@ class _PlaylistSectionState extends State<PlaylistSection> {
           itemCount: _songs.length,
           itemBuilder: (context, index) {
             final song = _songs[index];
+            final isDownloaded = _downloadedSongs[song.id] ?? false;
+            
             return ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -158,39 +199,35 @@ class _PlaylistSectionState extends State<PlaylistSection> {
               ),
               trailing: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white70),
-                onSelected: (value) {
+                onSelected: (value) async {
                   if (value == 'play') {
                     widget.playerService.playSong(song);
                   } else if (value == 'add_to_queue') {
                     widget.playerService.addToQueue(song);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Added to queue'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Added to queue'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } else if (value == 'download') {
+                    await _handleDownload(song);
                   }
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(
                     value: 'play',
-                    child: Row(
-                      children: [
-                        Icon(Icons.play_arrow, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Play Now'),
-                      ],
-                    ),
+                    child: Text('Play Now'),
                   ),
                   const PopupMenuItem(
                     value: 'add_to_queue',
-                    child: Row(
-                      children: [
-                        Icon(Icons.queue_music, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text('Add to Queue'),
-                      ],
-                    ),
+                    child: Text('Add to Queue'),
+                  ),
+                  PopupMenuItem(
+                    value: 'download',
+                    child: Text(isDownloaded ? 'Downloaded' : 'Download'),
                   ),
                 ],
               ),
