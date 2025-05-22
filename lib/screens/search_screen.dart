@@ -4,15 +4,21 @@ import '../models/song.dart';
 import '../models/album.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
+import '../services/search_cache_service.dart';
 import '../screens/album_details_screen.dart';
 import '../widgets/skeleton_loader.dart';
+import '../main.dart';  // Import SearchStateProvider
 
 class SearchScreen extends StatefulWidget {
   final MusicPlayerService playerService;
+  final SearchCacheService searchCacheService;
+  final SearchStateProvider searchStateProvider;
 
   const SearchScreen({
     super.key,
     required this.playerService,
+    required this.searchCacheService,
+    required this.searchStateProvider,
   });
 
   @override
@@ -21,57 +27,26 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final ApiService _apiService = ApiService();
-  List<Song> _searchResults = [];
-  List<Album> _albumResults = [];
-  bool _isLoading = false;
-  String? _error;
   Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set the initial search text if there's a previous query
+    if (widget.searchStateProvider.currentQuery.isNotEmpty) {
+      _searchController.text = widget.searchStateProvider.currentQuery;
+    }
+  }
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
       if (query.length >= 2) {
-        _performSearch(query);
+        widget.searchStateProvider.performSearch(query);
       } else {
-        setState(() {
-          _searchResults = [];
-          _albumResults = [];
-          _error = null;
-        });
+        widget.searchStateProvider.clearSearch();
       }
     });
-  }
-
-  Future<void> _performSearch(String query) async {
-    if (query.isEmpty) return;
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      // First load songs
-      final results = await _apiService.search(query);
-      setState(() {
-        _searchResults = results['songs'] as List<Song>;
-        _isLoading = false;
-      });
-
-      // Then load albums in the background
-      final albums = await _apiService.loadAlbumsForSongs(_searchResults);
-      if (mounted) {
-        setState(() {
-          _albumResults = albums;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
   }
 
   @override
@@ -82,7 +57,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSongList() {
-    if (_isLoading && _searchResults.isEmpty) {
+    if (widget.searchStateProvider.isLoading && widget.searchStateProvider.searchResults.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -100,14 +75,14 @@ class _SearchScreenState extends State<SearchScreen> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: 5, // Show 5 skeleton items
+            itemCount: 5,
             itemBuilder: (context, index) => const SongSkeletonLoader(),
           ),
         ],
       );
     }
 
-    if (_searchResults.isEmpty) return const SizedBox.shrink();
+    if (widget.searchStateProvider.searchResults.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,9 +101,9 @@ class _SearchScreenState extends State<SearchScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _searchResults.length,
+          itemCount: widget.searchStateProvider.searchResults.length,
           itemBuilder: (context, index) {
-            final song = _searchResults[index];
+            final song = widget.searchStateProvider.searchResults[index];
             return ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -204,7 +179,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildAlbumList() {
-    if (_isLoading && _albumResults.isEmpty) {
+    if (widget.searchStateProvider.isLoading && widget.searchStateProvider.albumResults.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -222,14 +197,14 @@ class _SearchScreenState extends State<SearchScreen> {
           ListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: 3, // Show 3 skeleton items
+            itemCount: 3,
             itemBuilder: (context, index) => const AlbumSkeletonLoader(),
           ),
         ],
       );
     }
 
-    if (_albumResults.isEmpty) return const SizedBox.shrink();
+    if (widget.searchStateProvider.albumResults.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,9 +223,9 @@ class _SearchScreenState extends State<SearchScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _albumResults.length,
+          itemCount: widget.searchStateProvider.albumResults.length,
           itemBuilder: (context, index) {
-            final album = _albumResults[index];
+            final album = widget.searchStateProvider.albumResults[index];
             return ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
@@ -297,39 +272,44 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            controller: _searchController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Search songs...',
-              hintStyle: const TextStyle(color: Colors.white54),
-              filled: true,
-              fillColor: Colors.grey[900],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide.none,
-              ),
-              prefixIcon: const Icon(Icons.search, color: Colors.white70),
-            ),
-            onChanged: _onSearchChanged,
-            onSubmitted: _performSearch,
-          ),
-        ),
-        Expanded(
-          child: _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-              : ListView(
-                  children: [
-                    _buildSongList(),
-                    _buildAlbumList(),
-                  ],
+    return ListenableBuilder(
+      listenable: widget.searchStateProvider,
+      builder: (context, _) {
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search songs...',
+                  hintStyle: const TextStyle(color: Colors.white54),
+                  filled: true,
+                  fillColor: Colors.grey[900],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
                 ),
-        ),
-      ],
+                onChanged: _onSearchChanged,
+                onSubmitted: widget.searchStateProvider.performSearch,
+              ),
+            ),
+            Expanded(
+              child: widget.searchStateProvider.error != null
+                  ? Center(child: Text(widget.searchStateProvider.error!, style: const TextStyle(color: Colors.red)))
+                  : ListView(
+                      children: [
+                        _buildSongList(),
+                        _buildAlbumList(),
+                      ],
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 } 

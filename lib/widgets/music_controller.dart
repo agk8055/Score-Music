@@ -3,6 +3,7 @@ import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
 import '../models/song.dart';
 import '../screens/queue_screen.dart';
+import '../screens/now_playing_screen.dart';
 
 class MusicController extends StatelessWidget {
   final MusicPlayerService playerService;
@@ -93,47 +94,74 @@ class MusicController extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
-                      child: Image.network(
-                        song.image,
-                        width: 40,
-                        height: 40,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 40,
-                            height: 40,
-                            color: Colors.grey[800],
-                            child: const Icon(Icons.music_note),
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => NowPlayingScreen(
+                                playerService: playerService,
+                              ),
+                            ),
                           );
                         },
+                        child: Hero(
+                          tag: 'album_art_${song.id}',
+                          child: Image.network(
+                            song.image,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 40,
+                                height: 40,
+                                color: Colors.grey[800],
+                                child: const Icon(Icons.music_note),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            song.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => NowPlayingScreen(
+                                playerService: playerService,
+                              ),
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            song.primaryArtists,
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 11,
+                          );
+                        },
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              song.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                            Text(
+                              song.primaryArtists,
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 11,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     StreamBuilder<List<Song>>(

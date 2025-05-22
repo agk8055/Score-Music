@@ -39,4 +39,19 @@ class Album {
       primaryArtistsId: _toString(json['primary_artists_id']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'albumid': id,
+      'name': name,
+      'perma_url': url,
+      'image': image,
+      'year': year,
+      'language': language,
+      'primary_artists': primaryArtists,
+      'title': title,
+      'release_date': releaseDate,
+      'primary_artists_id': primaryArtistsId,
+    };
+  }
 } 
