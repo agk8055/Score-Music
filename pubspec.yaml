@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.2
   http: ^1.1.0
   just_audio: ^0.9.36
+  url_launcher: ^6.2.4
 
 dev_dependencies:
   flutter_test:

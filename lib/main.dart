@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/search_screen.dart';
+import 'screens/about_screen.dart';
 import 'services/music_player_service.dart';
 import 'widgets/music_controller.dart';
 import 'widgets/base_scaffold.dart';
@@ -136,7 +137,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Navigate to about screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AboutScreen(),
+                  ),
+                );
               },
             ),
           ],
