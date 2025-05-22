@@ -188,7 +188,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                     IconButton(
                                       onPressed: () {
                                         if (_songs.isNotEmpty) {
-                                          widget.playerService.playSong(_songs[0]);
+                                          widget.playerService.playSong(_songs[0], playlist: _playlist);
                                           // Add remaining songs to queue
                                           for (var i = 1; i < _songs.length; i++) {
                                             widget.playerService.addToQueue(_songs[i]);
@@ -341,7 +341,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                     ],
                                   ),
                                   onTap: () {
-                                    widget.playerService.playSong(song);
+                                    widget.playerService.playSong(song, playlist: _playlist);
                                     // Add remaining songs to queue
                                     final currentIndex = _songs.indexOf(song);
                                     for (var i = currentIndex + 1; i < _songs.length; i++) {

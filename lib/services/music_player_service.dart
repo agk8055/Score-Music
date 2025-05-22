@@ -1,12 +1,16 @@
 import 'package:just_audio/just_audio.dart';
 import 'dart:async';
 import '../models/song.dart';
+import '../models/album.dart';
+import '../models/playlist.dart';
 import 'play_history_service.dart';
 
 class MusicPlayerService {
   final AudioPlayer _audioPlayer = AudioPlayer();
   final PlayHistoryService _historyService;
   Song? _currentSong;
+  Album? _currentAlbum;
+  Playlist? _currentPlaylist;
   bool _isInitialized = false;
   final _currentSongController = StreamController<Song?>.broadcast();
   final List<Song> _queue = [];
@@ -15,6 +19,8 @@ class MusicPlayerService {
   MusicPlayerService(this._historyService);
 
   Song? get currentSong => _currentSong;
+  Album? get currentAlbum => _currentAlbum;
+  Playlist? get currentPlaylist => _currentPlaylist;
   List<Song> get queue => List.unmodifiable(_queue);
   Stream<Song?> get currentSongStream => _currentSongController.stream;
   Stream<List<Song>> get queueStream => _queueController.stream;
@@ -23,7 +29,7 @@ class MusicPlayerService {
   Stream<PlayerState> get playerStateStream => _audioPlayer.playerStateStream;
   bool get isPlaying => _audioPlayer.playing;
 
-  Future<void> playSong(Song song) async {
+  Future<void> playSong(Song song, {Album? album, Playlist? playlist}) async {
     if (_currentSong?.id == song.id && _isInitialized) {
       if (_audioPlayer.playing) {
         await _audioPlayer.pause();
@@ -34,12 +40,14 @@ class MusicPlayerService {
     }
 
     _currentSong = song;
+    _currentAlbum = album;
+    _currentPlaylist = playlist;
     _currentSongController.add(song);
     try {
       await _audioPlayer.setUrl(song.mediaUrl);
       _isInitialized = true;
       await _audioPlayer.play();
-      await _historyService.addToHistory(song);
+      await _historyService.addToHistory(song, album: album, playlist: playlist);
     } catch (e) {
       print('Error playing song: $e');
       _isInitialized = false;

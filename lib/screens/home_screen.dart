@@ -21,7 +21,7 @@ class HomeScreen extends StatelessWidget {
       children: [
         PlayHistorySection(
           historyService: historyService,
-          onSongTap: (song) => playerService.playSong(song),
+          playerService: playerService,
         ),
         PlaylistCategorySection(
           playerService: playerService,

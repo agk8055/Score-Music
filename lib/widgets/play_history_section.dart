@@ -1,16 +1,59 @@
 import 'package:flutter/material.dart';
+import '../models/play_history_item.dart';
 import '../models/song.dart';
+import '../models/album.dart';
+import '../models/playlist.dart';
 import '../services/play_history_service.dart';
+import '../services/music_player_service.dart';
+import '../screens/album_details_screen.dart';
+import '../screens/playlist_details_screen.dart';
 
 class PlayHistorySection extends StatelessWidget {
   final PlayHistoryService historyService;
-  final Function(Song) onSongTap;
+  final MusicPlayerService playerService;
 
   const PlayHistorySection({
     Key? key,
     required this.historyService,
-    required this.onSongTap,
+    required this.playerService,
   }) : super(key: key);
+
+  void _handleItemTap(BuildContext context, PlayHistoryItem item) {
+    switch (item.type) {
+      case PlayHistoryItemType.song:
+        if (item.song != null) {
+          playerService.playSong(item.song!);
+        }
+        break;
+      case PlayHistoryItemType.album:
+        if (item.album != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AlbumDetailsScreen(
+                album: item.album!,
+                playerService: playerService,
+              ),
+            ),
+          );
+        }
+        break;
+      case PlayHistoryItemType.playlist:
+        if (item.playlist != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PlaylistDetailsScreen(
+                playlistUrl: item.playlist!.url,
+                playerService: playerService,
+                initialPlaylist: item.playlist,
+              ),
+            ),
+          );
+        }
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,11 +83,11 @@ class PlayHistorySection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             itemCount: history.length,
             itemBuilder: (context, index) {
-              final song = history[index];
+              final item = history[index];
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
                 child: GestureDetector(
-                  onTap: () => onSongTap(song),
+                  onTap: () => _handleItemTap(context, item),
                   child: Column(
                     children: [
                       Container(
@@ -53,7 +96,7 @@ class PlayHistorySection extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                           image: DecorationImage(
-                            image: NetworkImage(song.coverUrl),
+                            image: NetworkImage(item.image),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -62,7 +105,7 @@ class PlayHistorySection extends StatelessWidget {
                       SizedBox(
                         width: 140,
                         child: Text(
-                          song.title,
+                          item.title,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -74,7 +117,7 @@ class PlayHistorySection extends StatelessWidget {
                       SizedBox(
                         width: 140,
                         child: Text(
-                          song.artist,
+                          item.subtitle,
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],

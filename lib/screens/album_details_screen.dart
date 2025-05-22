@@ -165,7 +165,7 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                 IconButton(
                                   onPressed: () {
                                     if (_albumSongs.isNotEmpty) {
-                                      widget.playerService.playSong(_albumSongs[0]);
+                                      widget.playerService.playSong(_albumSongs[0], album: widget.album);
                                       // Add remaining songs to queue
                                       for (var i = 1; i < _albumSongs.length; i++) {
                                         widget.playerService.addToQueue(_albumSongs[i]);
@@ -325,7 +325,7 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                 ],
                               ),
                               onTap: () {
-                                widget.playerService.playSong(song);
+                                widget.playerService.playSong(song, album: widget.album);
                                 // Add remaining songs to queue
                                 final currentIndex = _albumSongs.indexOf(song);
                                 for (var i = currentIndex + 1; i < _albumSongs.length; i++) {

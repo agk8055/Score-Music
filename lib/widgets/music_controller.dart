@@ -245,6 +245,16 @@ class MusicController extends StatelessWidget {
                                 playerService.playNext();
                               },
                             ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.more_vert,
+                                color: Color(0xFFF5D505),
+                                size: 24,
+                              ),
+                              onPressed: () {
+                                // TODO: Implement menu functionality
+                              },
+                            ),
                           ],
                         );
                       },
