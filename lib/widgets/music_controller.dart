@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
 import '../models/song.dart';
+import '../screens/queue_screen.dart';
 
 class MusicController extends StatelessWidget {
   final MusicPlayerService playerService;
@@ -10,6 +11,23 @@ class MusicController extends StatelessWidget {
     super.key,
     required this.playerService,
   });
+
+  void _showQueueScreen(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.3,
+        minChildSize: 0.2,
+        maxChildSize: 0.8,
+        builder: (context, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          child: QueueScreen(playerService: playerService),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,23 +136,86 @@ class MusicController extends StatelessWidget {
                         ],
                       ),
                     ),
+                    StreamBuilder<List<Song>>(
+                      stream: playerService.queueStream,
+                      builder: (context, snapshot) {
+                        final queue = snapshot.data ?? [];
+                        return IconButton(
+                          icon: Stack(
+                            children: [
+                              const Icon(
+                                Icons.queue_music,
+                                color: Color(0xFFF5D505),
+                                size: 24,
+                              ),
+                              if (queue.isNotEmpty)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      queue.length.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onPressed: () => _showQueueScreen(context),
+                        );
+                      },
+                    ),
                     StreamBuilder<PlayerState>(
                       stream: playerService.playerStateStream,
                       builder: (context, snapshot) {
                         final isPlaying = snapshot.data?.playing ?? false;
-                        return IconButton(
-                          icon: Icon(
-                            isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: const Color(0xFFF5D505),
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            if (isPlaying) {
-                              playerService.pause();
-                            } else {
-                              playerService.resume();
-                            }
-                          },
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                Icons.skip_previous,
+                                color: Color(0xFFF5D505),
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                playerService.playPrevious();
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                isPlaying ? Icons.pause : Icons.play_arrow,
+                                color: const Color(0xFFF5D505),
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                if (isPlaying) {
+                                  playerService.pause();
+                                } else {
+                                  playerService.resume();
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.skip_next,
+                                color: Color(0xFFF5D505),
+                                size: 28,
+                              ),
+                              onPressed: () {
+                                playerService.playNext();
+                              },
+                            ),
+                          ],
                         );
                       },
                     ),

@@ -156,6 +156,44 @@ class _SearchScreenState extends State<SearchScreen> {
                 song.primaryArtists,
                 style: const TextStyle(color: Colors.white70),
               ),
+              trailing: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white70),
+                onSelected: (value) {
+                  if (value == 'play') {
+                    widget.playerService.playSong(song);
+                  } else if (value == 'add_to_queue') {
+                    widget.playerService.addToQueue(song);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Added to queue'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'play',
+                    child: Row(
+                      children: [
+                        Icon(Icons.play_arrow, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Play Now'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'add_to_queue',
+                    child: Row(
+                      children: [
+                        Icon(Icons.queue_music, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text('Add to Queue'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               onTap: () {
                 widget.playerService.playSong(song);
               },
