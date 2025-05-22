@@ -25,33 +25,33 @@ class BaseScaffold extends StatelessWidget {
       appBar: appBar,
       drawer: drawer,
       bottomNavigationBar: bottomNavigationBar,
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 85),
-            child: body,
-          ),
-          StreamBuilder<Song?>(
-            stream: playerService.currentSongStream,
-            builder: (context, snapshot) {
-              final song = snapshot.data;
-              if (song == null) return const SizedBox.shrink();
-
-              return Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  height: 85,
-                  child: MusicController(
-                    playerService: playerService,
+      body: StreamBuilder<Song?>(
+        stream: playerService.currentSongStream,
+        builder: (context, snapshot) {
+          final song = snapshot.data;
+          final showController = song != null;
+          return Stack(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: showController ? 85 : 0),
+                child: body,
+              ),
+              if (showController)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    height: 85,
+                    child: MusicController(
+                      playerService: playerService,
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/search_screen.dart';
 import 'screens/about_screen.dart';

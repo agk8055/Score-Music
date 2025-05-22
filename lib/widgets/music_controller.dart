@@ -39,8 +39,10 @@ class MusicController extends StatelessWidget {
         if (song == null) return const SizedBox.shrink();
 
         return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8.0),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
+            color: Colors.grey[900]?.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.2),
