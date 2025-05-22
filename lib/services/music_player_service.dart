@@ -1,14 +1,18 @@
 import 'package:just_audio/just_audio.dart';
 import 'dart:async';
 import '../models/song.dart';
+import 'play_history_service.dart';
 
 class MusicPlayerService {
   final AudioPlayer _audioPlayer = AudioPlayer();
+  final PlayHistoryService _historyService;
   Song? _currentSong;
   bool _isInitialized = false;
   final _currentSongController = StreamController<Song?>.broadcast();
   final List<Song> _queue = [];
   final _queueController = StreamController<List<Song>>.broadcast();
+
+  MusicPlayerService(this._historyService);
 
   Song? get currentSong => _currentSong;
   List<Song> get queue => List.unmodifiable(_queue);
@@ -35,6 +39,7 @@ class MusicPlayerService {
       await _audioPlayer.setUrl(song.mediaUrl);
       _isInitialized = true;
       await _audioPlayer.play();
+      await _historyService.addToHistory(song);
     } catch (e) {
       print('Error playing song: $e');
       _isInitialized = false;

@@ -24,6 +24,9 @@ class Song {
   final String disabledText;
   final bool isDisabled;
 
+  String get coverUrl => image;
+  String get artist => primaryArtists;
+
   Song({
     required this.id,
     required this.title,
@@ -81,5 +84,34 @@ class Song {
       disabledText: _toString(json['disabled_text']),
       isDisabled: _toBool(json['disabled']),
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'song': title,
+      'album': album,
+      'album_url': albumUrl,
+      'image': image,
+      'media_url': mediaUrl,
+      'media_preview_url': mediaPreviewUrl,
+      'duration': duration,
+      'language': language,
+      'artistMap': artistMap,
+      'primary_artists': primaryArtists,
+      'singers': singers,
+      'music': music,
+      'year': year,
+      'play_count': playCount,
+      'is_drm': isDrm ? 1 : 0,
+      'has_lyrics': hasLyrics,
+      'perma_url': permaUrl,
+      'release_date': releaseDate,
+      'label': label,
+      'copyright_text': copyrightText,
+      '320kbps': is320kbps,
+      'disabled_text': disabledText,
+      'disabled': isDisabled,
+    };
   }
 } 

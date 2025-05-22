@@ -5,7 +5,6 @@ import '../models/album.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
 import '../screens/album_details_screen.dart';
-import '../widgets/base_scaffold.dart';
 import '../widgets/skeleton_loader.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -298,29 +297,39 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BaseScaffold(
-      playerService: widget.playerService,
-      appBar: AppBar(
-        title: TextField(
-          controller: _searchController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Search songs...',
-            hintStyle: TextStyle(color: Colors.white54),
-            border: InputBorder.none,
-          ),
-          onChanged: _onSearchChanged,
-          onSubmitted: _performSearch,
-        ),
-      ),
-      body: _error != null
-          ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-          : ListView(
-              children: [
-                _buildSongList(),
-                _buildAlbumList(),
-              ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: 'Search songs...',
+              hintStyle: const TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Colors.grey[900],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.search, color: Colors.white70),
             ),
+            onChanged: _onSearchChanged,
+            onSubmitted: _performSearch,
+          ),
+        ),
+        Expanded(
+          child: _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              : ListView(
+                  children: [
+                    _buildSongList(),
+                    _buildAlbumList(),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 } 

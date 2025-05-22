@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/search_screen.dart';
 import 'screens/about_screen.dart';
+import 'screens/home_screen.dart';
 import 'services/music_player_service.dart';
+import 'services/play_history_service.dart';
 import 'widgets/music_controller.dart';
 import 'widgets/base_scaffold.dart';
 import 'models/song.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  runApp(MyApp(prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+  
+  const MyApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
-    final MusicPlayerService playerService = MusicPlayerService();
+    final historyService = PlayHistoryService(prefs);
+    final playerService = MusicPlayerService(historyService);
     
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -42,31 +50,94 @@ class MyApp extends StatelessWidget {
           bodyMedium: TextStyle(color: Colors.white),
         ),
       ),
-      home: MyHomePage(playerService: playerService),
+      home: MyHomePage(
+        playerService: playerService,
+        historyService: historyService,
+      ),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
   final MusicPlayerService playerService;
+  final PlayHistoryService historyService;
   
-  const MyHomePage({super.key, required this.playerService});
+  const MyHomePage({
+    super.key, 
+    required this.playerService,
+    required this.historyService,
+  });
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  int _selectedIndex = 0;
+
   @override
   void dispose() {
     widget.playerService.dispose();
     super.dispose();
   }
 
+  PreferredSizeWidget _buildAppBar() {
+    switch (_selectedIndex) {
+      case 0:
+        return AppBar(
+          title: const Text(
+            'Home',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFF5D505),
+            ),
+          ),
+        );
+      case 1:
+        return AppBar(
+          title: const Text(
+            'Search',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFF5D505),
+            ),
+          ),
+        );
+      default:
+        return AppBar(
+          title: const Text(
+            'Score',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFF5D505),
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 0:
+        return HomeScreen(
+          playerService: widget.playerService,
+          historyService: widget.historyService,
+        );
+      case 1:
+        return SearchScreen(playerService: widget.playerService);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return BaseScaffold(
       playerService: widget.playerService,
+      appBar: _buildAppBar(),
       drawer: Drawer(
         backgroundColor: const Color(0xFF1A1A1A),
         child: ListView(
@@ -148,42 +219,26 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      appBar: AppBar(
-        title: const Text(
-          'Score',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFFF5D505),
+      body: _buildBody(),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SearchScreen(
-                    playerService: widget.playerService,
-                  ),
-                ),
-              );
-            },
+          NavigationDestination(
+            icon: Icon(Icons.search),
+            label: 'Search',
           ),
         ],
-      ),
-      body: Container(
-        color: Colors.black,
-        child: const Center(
-          child: Text(
-            'Music Player',
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
-        ),
       ),
     );
   }

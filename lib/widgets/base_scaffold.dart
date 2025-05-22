@@ -7,6 +7,7 @@ class BaseScaffold extends StatelessWidget {
   final Widget body;
   final PreferredSizeWidget? appBar;
   final Widget? drawer;
+  final Widget? bottomNavigationBar;
   final MusicPlayerService playerService;
 
   const BaseScaffold({
@@ -15,6 +16,7 @@ class BaseScaffold extends StatelessWidget {
     required this.playerService,
     this.appBar,
     this.drawer,
+    this.bottomNavigationBar,
   });
 
   @override
@@ -22,6 +24,7 @@ class BaseScaffold extends StatelessWidget {
     return Scaffold(
       appBar: appBar,
       drawer: drawer,
+      bottomNavigationBar: bottomNavigationBar,
       body: Stack(
         children: [
           Padding(
