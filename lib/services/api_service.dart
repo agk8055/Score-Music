@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/song.dart';
 import '../models/album.dart';
+import '../models/playlist.dart';
 
 class ApiService {
   static const String baseUrl = 'https://web-production-aa71.up.railway.app';
@@ -81,6 +82,45 @@ class ApiService {
     } catch (e) {
       print('Error loading album details: $e');
       throw Exception('Error loading album details: $e');
+    }
+  }
+
+  Future<Playlist> getPlaylistDetails(String playlistUrl) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/playlist/?query=$playlistUrl'),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return Playlist.fromJson(data);
+      } else {
+        throw Exception('Failed to load playlist details');
+      }
+    } catch (e) {
+      throw Exception('Error loading playlist details: $e');
+    }
+  }
+
+  Future<List<Song>> getPlaylistSongs(List<String> songIds) async {
+    try {
+      final songs = <Song>[];
+      for (final id in songIds) {
+        try {
+          final response = await http.get(
+            Uri.parse('$baseUrl/song/get/?id=$id'),
+          );
+          if (response.statusCode == 200) {
+            final Map<String, dynamic> data = json.decode(response.body);
+            songs.add(Song.fromJson(data));
+          }
+        } catch (e) {
+          print('Error fetching song $id: $e');
+        }
+      }
+      return songs;
+    } catch (e) {
+      throw Exception('Error loading playlist songs: $e');
     }
   }
 } 
