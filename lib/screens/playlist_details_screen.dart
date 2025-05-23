@@ -8,6 +8,8 @@ import '../services/download_service.dart';
 import '../services/playlist_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/playlist_selection_dialog.dart';
+import '../widgets/bottom_navigation.dart';
+import 'package:dio/dio.dart';
 
 class PlaylistDetailsScreen extends StatefulWidget {
   final MusicPlayerService playerService;
@@ -120,15 +122,19 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
         _playlist!.contentList.sublist(startIndex, endIndex),
       );
 
-      setState(() {
-        _songs.addAll(moreSongs);
-        _currentPage++;
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _songs.addAll(moreSongs);
+          _currentPage++;
+          _isLoadingMore = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -146,6 +152,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
   Widget build(BuildContext context) {
     return BaseScaffold(
       playerService: widget.playerService,
+      playlistService: widget.playlistService,
       appBar: AppBar(
         title: Text(
           _playlist?.name ?? 'Playlist',
@@ -154,6 +161,11 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
         backgroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      bottomNavigationBar: BottomNavigation(
+        selectedIndex: 2,
+        onDestinationSelected: (index) {},
+        isLibraryScreen: true,
       ),
       body: _error != null
           ? Center(
@@ -399,7 +411,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                             },
                                             cancelToken: cancelToken,
                                           );
-                                          if (!cancelToken.cancelled) {
+                                          if (!cancelToken.isCancelled) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               const SnackBar(
                                                 content: Text('Song downloaded successfully'),
@@ -407,7 +419,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                             );
                                           }
                                         } catch (e) {
-                                          if (cancelToken.cancelled) {
+                                          if (cancelToken.isCancelled) {
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               const SnackBar(
                                                 content: Text('Download cancelled'),

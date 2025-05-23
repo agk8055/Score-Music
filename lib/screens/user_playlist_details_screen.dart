@@ -7,6 +7,7 @@ import '../services/playlist_service.dart';
 import '../services/api_service.dart';
 import '../services/download_service.dart';
 import '../widgets/base_scaffold.dart';
+import '../widgets/bottom_navigation.dart';
 
 class UserPlaylistDetailsScreen extends StatefulWidget {
   final UserPlaylist playlist;
@@ -124,6 +125,7 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
   Widget build(BuildContext context) {
     return BaseScaffold(
       playerService: widget.playerService,
+      playlistService: _playlistService,
       appBar: AppBar(
         title: Text(
           widget.playlist.name,
@@ -163,6 +165,11 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
             },
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigation(
+        selectedIndex: 2,
+        onDestinationSelected: (index) {},
+        isLibraryScreen: true,
       ),
       body: _error != null
           ? Center(

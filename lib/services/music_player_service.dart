@@ -1,5 +1,6 @@
 import 'package:just_audio/just_audio.dart';
 import 'dart:async';
+import 'package:rxdart/rxdart.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../models/playlist.dart';
@@ -14,6 +15,7 @@ class MusicPlayerService {
   bool _isInitialized = false;
   final _currentSongController = StreamController<Song?>.broadcast();
   final List<Song> _queue = [];
+  final List<Song> _previousSongs = [];
   final _queueController = StreamController<List<Song>>.broadcast();
 
   MusicPlayerService(this._historyService);
@@ -22,7 +24,7 @@ class MusicPlayerService {
   Album? get currentAlbum => _currentAlbum;
   Playlist? get currentPlaylist => _currentPlaylist;
   List<Song> get queue => List.unmodifiable(_queue);
-  Stream<Song?> get currentSongStream => _currentSongController.stream;
+  Stream<Song?> get currentSongStream => _currentSongController.stream.asBroadcastStream().startWith(_currentSong);
   Stream<List<Song>> get queueStream => _queueController.stream;
   Stream<Duration?> get positionStream => _audioPlayer.positionStream;
   Stream<Duration?> get durationStream => _audioPlayer.durationStream;
@@ -39,6 +41,14 @@ class MusicPlayerService {
       return;
     }
 
+    // Stop current playback and reset
+    await _audioPlayer.stop();
+    _isInitialized = false;
+
+    if (_currentSong != null) {
+      _previousSongs.add(_currentSong!);
+    }
+
     _currentSong = song;
     _currentAlbum = album;
     _currentPlaylist = playlist;
@@ -51,6 +61,8 @@ class MusicPlayerService {
     } catch (e) {
       print('Error playing song: $e');
       _isInitialized = false;
+      _currentSong = null;
+      _currentSongController.add(null);
     }
   }
 
@@ -94,14 +106,14 @@ class MusicPlayerService {
   }
 
   Future<void> playPrevious() async {
-    if (_currentSong != null && _queue.isNotEmpty) {
-      // Add current song back to the front of the queue
-      _queue.insert(0, _currentSong!);
-      // Play the first song in the queue
-      final previousSong = _queue.removeAt(0);
-      _queueController.add(_queue);
+    if (_previousSongs.isNotEmpty) {
+      final previousSong = _previousSongs.removeLast();
       await playSong(previousSong);
     }
+  }
+
+  void clearPreviousSongs() {
+    _previousSongs.clear();
   }
 
   Future<void> pause() async {

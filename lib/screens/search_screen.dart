@@ -9,17 +9,21 @@ import '../screens/album_details_screen.dart';
 import '../widgets/skeleton_loader.dart';
 import '../main.dart';  // Import SearchStateProvider
 import '../services/download_service.dart';
+import '../services/playlist_service.dart';
+import 'package:dio/dio.dart';
 
 class SearchScreen extends StatefulWidget {
   final MusicPlayerService playerService;
   final SearchCacheService searchCacheService;
   final SearchStateProvider searchStateProvider;
+  final PlaylistService playlistService;
 
   const SearchScreen({
     super.key,
     required this.playerService,
     required this.searchCacheService,
     required this.searchStateProvider,
+    required this.playlistService,
   });
 
   @override
@@ -206,7 +210,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         },
                         cancelToken: cancelToken,
                       );
-                      if (!cancelToken.cancelled) {
+                      if (!cancelToken.isCancelled) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Song downloaded successfully'),
@@ -214,7 +218,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         );
                       }
                     } catch (e) {
-                      if (cancelToken.cancelled) {
+                      if (cancelToken.isCancelled) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Download cancelled'),
@@ -360,6 +364,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     builder: (context) => AlbumDetailsScreen(
                       album: album,
                       playerService: widget.playerService,
+                      playlistService: widget.playlistService,
                     ),
                   ),
                 );

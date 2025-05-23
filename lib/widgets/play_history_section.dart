@@ -36,6 +36,7 @@ class PlayHistorySection extends StatelessWidget {
               builder: (context) => AlbumDetailsScreen(
                 album: item.album!,
                 playerService: playerService,
+                playlistService: playlistService,
               ),
             ),
           );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/song.dart';
 import '../services/music_player_service.dart';
+import '../services/playlist_service.dart';
 import 'music_controller.dart';
 
 class BaseScaffold extends StatelessWidget {
@@ -9,11 +10,13 @@ class BaseScaffold extends StatelessWidget {
   final Widget? drawer;
   final Widget? bottomNavigationBar;
   final MusicPlayerService playerService;
+  final PlaylistService playlistService;
 
   const BaseScaffold({
     super.key,
     required this.body,
     required this.playerService,
+    required this.playlistService,
     this.appBar,
     this.drawer,
     this.bottomNavigationBar,
@@ -46,6 +49,7 @@ class BaseScaffold extends StatelessWidget {
                     height: 85,
                     child: MusicController(
                       playerService: playerService,
+                      playlistService: playlistService,
                     ),
                   ),
                 ),

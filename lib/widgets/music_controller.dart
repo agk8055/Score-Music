@@ -2,16 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
 import '../services/download_service.dart';
+import '../services/playlist_service.dart';
 import '../models/song.dart';
 import '../screens/queue_screen.dart';
 import '../screens/now_playing_screen.dart';
+import '../widgets/playlist_selection_dialog.dart';
 
 class MusicController extends StatelessWidget {
   final MusicPlayerService playerService;
+  final PlaylistService playlistService;
 
   const MusicController({
     super.key,
     required this.playerService,
+    required this.playlistService,
   });
 
   void _showQueueScreen(BuildContext context) {
@@ -31,10 +35,20 @@ class MusicController extends StatelessWidget {
     );
   }
 
+  void _showAddToPlaylistDialog(BuildContext context, Song song) {
+    showDialog(
+      context: context,
+      builder: (context) => PlaylistSelectionDialog(
+        playlistService: playlistService,
+        songId: song.id,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Song?>(
-      stream: Stream.value(playerService.currentSong),
+      stream: playerService.currentSongStream,
       builder: (context, snapshot) {
         final song = snapshot.data;
         if (song == null) return const SizedBox.shrink();
@@ -255,6 +269,12 @@ class MusicController extends StatelessWidget {
                               onPressed: () {
                                 showModalBottomSheet(
                                   context: context,
+                                  backgroundColor: Colors.grey[900],
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(16),
+                                    ),
+                                  ),
                                   builder: (context) => Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -262,36 +282,58 @@ class MusicController extends StatelessWidget {
                                         stream: Stream.fromFuture(DownloadService().isDownloaded(song)),
                                         builder: (context, snapshot) {
                                           final isDownloaded = snapshot.data ?? false;
-                                          return ListTile(
-                                            leading: Icon(
-                                              isDownloaded ? Icons.download_done : Icons.download,
-                                              color: const Color(0xFFF5D505),
-                                            ),
-                                            title: Text(isDownloaded ? 'Downloaded' : 'Download'),
-                                            onTap: () async {
-                                              Navigator.pop(context);
-                                              if (!isDownloaded) {
-                                                try {
-                                                  await DownloadService().downloadSong(
-                                                    song,
-                                                    onProgress: (progress) {
-                                                      // TODO: Show download progress
-                                                    },
-                                                  );
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    const SnackBar(
-                                                      content: Text('Song downloaded successfully'),
-                                                    ),
-                                                  );
-                                                } catch (e) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text('Error downloading song: $e'),
-                                                    ),
-                                                  );
-                                                }
-                                              }
-                                            },
+                                          return Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              ListTile(
+                                                leading: Icon(
+                                                  isDownloaded ? Icons.download_done : Icons.download,
+                                                  color: const Color(0xFFF5D505),
+                                                ),
+                                                title: Text(
+                                                  isDownloaded ? 'Downloaded' : 'Download',
+                                                  style: const TextStyle(color: Colors.white),
+                                                ),
+                                                onTap: () async {
+                                                  Navigator.pop(context);
+                                                  if (!isDownloaded) {
+                                                    try {
+                                                      await DownloadService().downloadSong(
+                                                        song,
+                                                        onProgress: (progress) {
+                                                          // TODO: Show download progress
+                                                        },
+                                                      );
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text('Song downloaded successfully'),
+                                                        ),
+                                                      );
+                                                    } catch (e) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text('Error downloading song: $e'),
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                },
+                                              ),
+                                              ListTile(
+                                                leading: const Icon(
+                                                  Icons.playlist_add,
+                                                  color: Color(0xFFF5D505),
+                                                ),
+                                                title: const Text(
+                                                  'Add to Playlist',
+                                                  style: TextStyle(color: Colors.white),
+                                                ),
+                                                onTap: () {
+                                                  Navigator.pop(context);
+                                                  _showAddToPlaylistDialog(context, song);
+                                                },
+                                              ),
+                                            ],
                                           );
                                         },
                                       ),

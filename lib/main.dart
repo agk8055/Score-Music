@@ -16,6 +16,7 @@ import 'widgets/music_controller.dart';
 import 'widgets/base_scaffold.dart';
 import 'models/song.dart';
 import 'models/album.dart';
+import 'widgets/bottom_navigation.dart';
 
 class SearchStateProvider extends ChangeNotifier {
   final SearchCacheService _cacheService;
@@ -260,6 +261,7 @@ class _MyHomePageState extends State<MyHomePage> {
           playerService: widget.playerService,
           searchStateProvider: widget.searchStateProvider,
           searchCacheService: widget.searchCacheService,
+          playlistService: widget.playlistService,
         );
       case 2:
         return LibraryScreen(
@@ -278,6 +280,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return BaseScaffold(
       playerService: widget.playerService,
+      playlistService: widget.playlistService,
       appBar: _buildAppBar(),
       body: _buildBody(),
       drawer: Drawer(
@@ -376,30 +379,13 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: BottomNavigation(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search_outlined),
-            selectedIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.library_music_outlined),
-            selectedIcon: Icon(Icons.library_music),
-            label: 'Library',
-          ),
-        ],
       ),
     );
   }

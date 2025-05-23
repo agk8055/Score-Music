@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/play_history_service.dart';
+import 'home_customization_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final PlayHistoryService historyService;
@@ -86,6 +87,41 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     );
                   }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            color: const Color(0xFF1A1A1A),
+            child: ListTile(
+              leading: const Icon(
+                Icons.dashboard_customize,
+                color: Color(0xFFF5D505),
+              ),
+              title: const Text(
+                'Customize Home Screen',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Personalize your home screen layout and appearance',
+                style: TextStyle(color: Colors.grey),
+              ),
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomeCustomizationScreen(),
+                  ),
+                );
+                
+                if (result == true && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Home screen updated'),
+                      backgroundColor: Color(0xFF1A1A1A),
+                    ),
+                  );
                 }
               },
             ),

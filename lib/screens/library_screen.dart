@@ -25,6 +25,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final ApiService _apiService = ApiService();
   List<UserPlaylist> _playlists = [];
   Map<String, String> _playlistImages = {};
+  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -35,14 +36,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _initializePlaylistService() async {
     final prefs = await SharedPreferences.getInstance();
     _playlistService = PlaylistService(prefs);
-    _loadPlaylists();
+    await _loadPlaylists();
+    if (mounted) {
+      setState(() {
+        _isInitialized = true;
+      });
+    }
   }
 
-  void _loadPlaylists() {
+  Future<void> _loadPlaylists() async {
     setState(() {
       _playlists = _playlistService.getUserPlaylists();
     });
-    _loadPlaylistImages();
+    await _loadPlaylistImages();
   }
 
   Future<void> _loadPlaylistImages() async {
@@ -104,6 +110,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
+  void _navigateToDownloadedSongs() {
+    if (!_isInitialized) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait while the library is loading...')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DownloadedSongsScreen(
+          playerService: widget.playerService,
+          playlistService: _playlistService,
+          selectedIndex: 2, // Library tab index
+          onDestinationSelected: (index) {
+            // Handle navigation if needed
+            Navigator.pop(context);
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,14 +143,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DownloadedSongsScreen(),
-                  ),
-                );
-              },
+              onPressed: _navigateToDownloadedSongs,
               icon: const Icon(Icons.download_done),
               label: const Text('Downloaded Songs'),
               style: ElevatedButton.styleFrom(
@@ -131,7 +154,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _showCreatePlaylistDialog,
+              onPressed: _isInitialized ? _showCreatePlaylistDialog : null,
               icon: const Icon(Icons.playlist_add),
               label: const Text('Create Playlist'),
               style: ElevatedButton.styleFrom(
@@ -150,78 +173,84 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: _playlists.length,
-                itemBuilder: (context, index) {
-                  final playlist = _playlists[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: _playlistImages[playlist.id] != null
-                            ? Image.network(
-                                _playlistImages[playlist.id]!,
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 56,
-                                    height: 56,
-                                    color: const Color(0xFFF5D505),
-                                    child: Text(
-                                      playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
+              child: _isInitialized
+                  ? ListView.builder(
+                      itemCount: _playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = _playlists[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: _playlistImages[playlist.id] != null
+                                  ? Image.network(
+                                      _playlistImages[playlist.id]!,
+                                      width: 56,
+                                      height: 56,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Container(
+                                          width: 56,
+                                          height: 56,
+                                          color: const Color(0xFFF5D505),
+                                          child: Text(
+                                            playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
+                                            style: const TextStyle(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    )
+                                  : Container(
+                                      width: 56,
+                                      height: 56,
+                                      color: const Color(0xFFF5D505),
+                                      child: Text(
+                                        playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
+                                        style: const TextStyle(
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
                                     ),
-                                  );
-                                },
-                              )
-                            : Container(
-                                width: 56,
-                                height: 56,
-                                color: const Color(0xFFF5D505),
-                                child: Text(
-                                  playlist.name.isNotEmpty ? playlist.name[0].toUpperCase() : 'P',
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
+                            ),
+                            title: Text(
+                              playlist.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text('${playlist.songIds.length} songs'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                await _playlistService.deleteUserPlaylist(playlist.id);
+                                _loadPlaylists();
+                              },
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => UserPlaylistDetailsScreen(
+                                    playlist: playlist,
+                                    playerService: widget.playerService,
                                   ),
                                 ),
-                              ),
-                      ),
-                      title: Text(
-                        playlist.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text('${playlist.songIds.length} songs'),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          await _playlistService.deleteUserPlaylist(playlist.id);
-                          _loadPlaylists();
-                        },
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => UserPlaylistDetailsScreen(
-                              playlist: playlist,
-                              playerService: widget.playerService,
-                            ),
+                              );
+                            },
                           ),
                         );
                       },
+                    )
+                  : const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF5D505),
+                      ),
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
