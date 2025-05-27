@@ -1,5 +1,6 @@
 import 'package:just_audio/just_audio.dart';
 import 'dart:async';
+import 'dart:math';
 import 'package:rxdart/rxdart.dart';
 import '../models/song.dart';
 import '../models/album.dart';
@@ -13,23 +14,56 @@ class MusicPlayerService {
   Album? _currentAlbum;
   Playlist? _currentPlaylist;
   bool _isInitialized = false;
+  bool _isShuffleOn = false;
   final _currentSongController = StreamController<Song?>.broadcast();
   final List<Song> _queue = [];
   final List<Song> _previousSongs = [];
   final _queueController = StreamController<List<Song>>.broadcast();
+  final _shuffleController = StreamController<bool>.broadcast();
 
-  MusicPlayerService(this._historyService);
+  MusicPlayerService(this._historyService) {
+    // Listen for song completion
+    _audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        playNext();
+      }
+    });
+  }
 
   Song? get currentSong => _currentSong;
   Album? get currentAlbum => _currentAlbum;
   Playlist? get currentPlaylist => _currentPlaylist;
   List<Song> get queue => List.unmodifiable(_queue);
+  bool get isShuffleOn => _isShuffleOn;
   Stream<Song?> get currentSongStream => _currentSongController.stream.asBroadcastStream().startWith(_currentSong);
   Stream<List<Song>> get queueStream => _queueController.stream;
   Stream<Duration?> get positionStream => _audioPlayer.positionStream;
   Stream<Duration?> get durationStream => _audioPlayer.durationStream;
   Stream<PlayerState> get playerStateStream => _audioPlayer.playerStateStream;
+  Stream<LoopMode> get loopModeStream => _audioPlayer.loopModeStream;
+  Stream<bool> get shuffleStream => _shuffleController.stream.startWith(_isShuffleOn);
   bool get isPlaying => _audioPlayer.playing;
+
+  void toggleShuffle() {
+    _isShuffleOn = !_isShuffleOn;
+    _shuffleController.add(_isShuffleOn);
+    if (_isShuffleOn) {
+      _shuffleQueue();
+    }
+  }
+
+  void _shuffleQueue() {
+    if (_queue.isEmpty) return;
+    
+    final random = Random();
+    for (var i = _queue.length - 1; i > 0; i--) {
+      final j = random.nextInt(i + 1);
+      final temp = _queue[i];
+      _queue[i] = _queue[j];
+      _queue[j] = temp;
+    }
+    _queueController.add(_queue);
+  }
 
   Future<void> playSong(Song song, {Album? album, Playlist? playlist}) async {
     if (_currentSong?.id == song.id && _isInitialized) {
@@ -98,10 +132,51 @@ class MusicPlayerService {
   }
 
   Future<void> playNext() async {
-    if (_queue.isNotEmpty) {
-      final nextSong = _queue.removeAt(0);
-      _queueController.add(_queue);
-      await playSong(nextSong);
+    if (_queue.isEmpty) {
+      // If queue is empty and we're in loop mode, we should handle that
+      if (_audioPlayer.loopMode == LoopMode.all && _currentSong != null) {
+        // Add the current song back to the queue
+        _queue.add(_currentSong!);
+        _queueController.add(_queue);
+      } else {
+        return;
+      }
+    }
+
+    // If we're playing the same song that's next in queue, remove it first
+    if (_queue.isNotEmpty && _queue[0].id == _currentSong?.id) {
+      _queue.removeAt(0);
+      if (_queue.isEmpty) {
+        _queueController.add(_queue);
+        return;
+      }
+    }
+
+    Song nextSong;
+    if (_isShuffleOn) {
+      final random = Random();
+      final index = random.nextInt(_queue.length);
+      nextSong = _queue.removeAt(index);
+    } else {
+      nextSong = _queue.removeAt(0);
+    }
+    
+    _queueController.add(_queue);
+    
+    // Update current song before playing
+    _currentSong = nextSong;
+    _currentSongController.add(nextSong);
+    
+    try {
+      await _audioPlayer.setUrl(nextSong.mediaUrl);
+      _isInitialized = true;
+      await _audioPlayer.play();
+      await _historyService.addToHistory(nextSong);
+    } catch (e) {
+      print('Error playing next song: $e');
+      _isInitialized = false;
+      _currentSong = null;
+      _currentSongController.add(null);
     }
   }
 
@@ -128,9 +203,14 @@ class MusicPlayerService {
     await _audioPlayer.seek(position);
   }
 
+  Future<void> setLoopMode(LoopMode mode) async {
+    await _audioPlayer.setLoopMode(mode);
+  }
+
   Future<void> dispose() async {
     await _currentSongController.close();
     await _queueController.close();
+    await _shuffleController.close();
     await _audioPlayer.dispose();
   }
 } 

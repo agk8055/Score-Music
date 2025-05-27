@@ -39,7 +39,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
   bool _isLoadingMore = false;
   String? _error;
   int _currentPage = 0;
-  static const int _songsPerPage = 10;
+  static const int _songsPerPage = 5;
 
   // Download progress tracking
   final Map<String, double> _downloadProgress = {};
@@ -85,10 +85,24 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
         }
       }
 
-      // Load initial songs
-      final initialSongs = await _apiService.getPlaylistSongs(
-        _playlist!.contentList.sublist(0, _songsPerPage),
-      );
+      // Get initial song IDs
+      final initialSongIds = _playlist!.contentList.sublist(0, _songsPerPage);
+      
+      // Try to get songs from cache first
+      List<Song> initialSongs = _cacheService.getCachedSongs(initialSongIds);
+      
+      // If we don't have all songs in cache, fetch the missing ones
+      if (initialSongs.length < initialSongIds.length) {
+        final missingIds = initialSongIds.where(
+          (id) => !initialSongs.any((song) => song.id == id)
+        ).toList();
+        
+        if (missingIds.isNotEmpty) {
+          final newSongs = await _apiService.getPlaylistSongs(missingIds);
+          _cacheService.cacheSongs(newSongs);
+          initialSongs.addAll(newSongs);
+        }
+      }
 
       setState(() {
         _songs = initialSongs;
@@ -118,9 +132,23 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
           ? _playlist!.contentList.length
           : startIndex + _songsPerPage;
 
-      final moreSongs = await _apiService.getPlaylistSongs(
-        _playlist!.contentList.sublist(startIndex, endIndex),
-      );
+      final moreSongIds = _playlist!.contentList.sublist(startIndex, endIndex);
+      
+      // Try to get songs from cache first
+      List<Song> moreSongs = _cacheService.getCachedSongs(moreSongIds);
+      
+      // If we don't have all songs in cache, fetch the missing ones
+      if (moreSongs.length < moreSongIds.length) {
+        final missingIds = moreSongIds.where(
+          (id) => !moreSongs.any((song) => song.id == id)
+        ).toList();
+        
+        if (missingIds.isNotEmpty) {
+          final newSongs = await _apiService.getPlaylistSongs(missingIds);
+          _cacheService.cacheSongs(newSongs);
+          moreSongs.addAll(newSongs);
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -380,8 +408,18 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                         widget.playerService.playSong(song, playlist: _playlist);
                                         // Add remaining songs to queue
                                         final currentIndex = _songs.indexOf(song);
-                                        for (var i = currentIndex + 1; i < _songs.length; i++) {
-                                          widget.playerService.addToQueue(_songs[i]);
+                                        // Add all remaining songs from the playlist to queue
+                                        for (var i = currentIndex + 1; i < _playlist!.contentList.length; i++) {
+                                          if (i < _songs.length) {
+                                            widget.playerService.addToQueue(_songs[i]);
+                                          } else {
+                                            // Load and add songs that haven't been loaded yet
+                                            _apiService.getPlaylistSongs([_playlist!.contentList[i]]).then((newSongs) {
+                                              if (newSongs.isNotEmpty) {
+                                                widget.playerService.addToQueue(newSongs[0]);
+                                              }
+                                            });
+                                          }
                                         }
                                       } else if (value == 'add_to_queue') {
                                         widget.playerService.addToQueue(song);
@@ -490,8 +528,18 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                     widget.playerService.playSong(song, playlist: _playlist);
                                     // Add remaining songs to queue
                                     final currentIndex = _songs.indexOf(song);
-                                    for (var i = currentIndex + 1; i < _songs.length; i++) {
-                                      widget.playerService.addToQueue(_songs[i]);
+                                    // Add all remaining songs from the playlist to queue
+                                    for (var i = currentIndex + 1; i < _playlist!.contentList.length; i++) {
+                                      if (i < _songs.length) {
+                                        widget.playerService.addToQueue(_songs[i]);
+                                      } else {
+                                        // Load and add songs that haven't been loaded yet
+                                        _apiService.getPlaylistSongs([_playlist!.contentList[i]]).then((newSongs) {
+                                          if (newSongs.isNotEmpty) {
+                                            widget.playerService.addToQueue(newSongs[0]);
+                                          }
+                                        });
+                                      }
                                     }
                                   },
                                 );

@@ -174,6 +174,73 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _checkFirstLaunch();
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
+    
+    if (isFirstLaunch) {
+      if (mounted) {
+        _showNameDialog();
+      }
+      await prefs.setBool('is_first_launch', false);
+    }
+  }
+
+  Future<void> _showNameDialog() async {
+    final TextEditingController nameController = TextEditingController();
+    
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: const Text(
+            'Welcome to Score!',
+            style: TextStyle(color: Color(0xFFF5D505)),
+          ),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              hintText: 'Enter your name',
+              hintStyle: TextStyle(color: Colors.grey),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFF5D505)),
+              ),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: Color(0xFFF5D505)),
+              ),
+            ),
+            style: const TextStyle(color: Colors.white),
+          ),
+          actions: [
+            TextButton(
+              child: const Text(
+                'Continue',
+                style: TextStyle(color: Color(0xFFF5D505)),
+              ),
+              onPressed: () async {
+                if (nameController.text.trim().isNotEmpty) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('user_name', nameController.text.trim());
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
   void dispose() {
     widget.playerService.dispose();
     super.dispose();
@@ -183,14 +250,22 @@ class _MyHomePageState extends State<MyHomePage> {
     switch (_selectedIndex) {
       case 0:
         return AppBar(
+          leadingWidth: 40,
           leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+            builder: (context) => FutureBuilder<String?>(
+              future: SharedPreferences.getInstance().then((prefs) => prefs.getString('user_name')),
+              builder: (context, snapshot) {
+                final userName = snapshot.data;
+                final firstLetter = userName?.isNotEmpty == true ? userName![0].toUpperCase() : '?';
+                return UserAvatar(
+                  letter: firstLetter,
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                );
+              },
             ),
           ),
           title: const Text(
-            'Home',
+            'Score',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -200,10 +275,18 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       case 1:
         return AppBar(
+          leadingWidth: 40,
           leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+            builder: (context) => FutureBuilder<String?>(
+              future: SharedPreferences.getInstance().then((prefs) => prefs.getString('user_name')),
+              builder: (context, snapshot) {
+                final userName = snapshot.data;
+                final firstLetter = userName?.isNotEmpty == true ? userName![0].toUpperCase() : '?';
+                return UserAvatar(
+                  letter: firstLetter,
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                );
+              },
             ),
           ),
           title: const Text(
@@ -217,10 +300,18 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       case 2:
         return AppBar(
+          leadingWidth: 40,
           leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+            builder: (context) => FutureBuilder<String?>(
+              future: SharedPreferences.getInstance().then((prefs) => prefs.getString('user_name')),
+              builder: (context, snapshot) {
+                final userName = snapshot.data;
+                final firstLetter = userName?.isNotEmpty == true ? userName![0].toUpperCase() : '?';
+                return UserAvatar(
+                  letter: firstLetter,
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                );
+              },
             ),
           ),
           title: const Text(
@@ -234,6 +325,20 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       case 3:
         return AppBar(
+          leadingWidth: 40,
+          leading: Builder(
+            builder: (context) => FutureBuilder<String?>(
+              future: SharedPreferences.getInstance().then((prefs) => prefs.getString('user_name')),
+              builder: (context, snapshot) {
+                final userName = snapshot.data;
+                final firstLetter = userName?.isNotEmpty == true ? userName![0].toUpperCase() : '?';
+                return UserAvatar(
+                  letter: firstLetter,
+                  onTap: () => Scaffold.of(context).openDrawer(),
+                );
+              },
+            ),
+          ),
           title: const Text(
             'Settings',
             style: TextStyle(
@@ -386,6 +491,55 @@ class _MyHomePageState extends State<MyHomePage> {
             _selectedIndex = index;
           });
         },
+      ),
+    );
+  }
+}
+
+class UserAvatar extends StatelessWidget {
+  final String letter;
+  final VoidCallback onTap;
+
+  const UserAvatar({
+    super.key,
+    required this.letter,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5D505),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    letter,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

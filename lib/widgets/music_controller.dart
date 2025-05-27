@@ -118,6 +118,7 @@ class MusicController extends StatelessWidget {
                             MaterialPageRoute(
                               builder: (context) => NowPlayingScreen(
                                 playerService: playerService,
+                                playlistService: playlistService,
                               ),
                             ),
                           );
@@ -150,6 +151,7 @@ class MusicController extends StatelessWidget {
                             MaterialPageRoute(
                               builder: (context) => NowPlayingScreen(
                                 playerService: playerService,
+                                playlistService: playlistService,
                               ),
                             ),
                           );

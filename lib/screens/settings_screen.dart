@@ -126,6 +126,32 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
           ),
+          const SizedBox(height: 16),
+          Card(
+            color: const Color(0xFF1A1A1A),
+            child: ListTile(
+              leading: const Icon(
+                Icons.settings_remote,
+                color: Color(0xFFF5D505),
+              ),
+              title: const Text(
+                'Update Backend URL',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'Change the backend server URL',
+                style: TextStyle(color: Colors.grey),
+              ),
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Backend URL update coming soon'),
+                    backgroundColor: Color(0xFF1A1A1A),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

@@ -51,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
             playlistUrls: [
               'https://www.jiosaavn.com/featured/top-kuthu-tamil/CNVzQf7lvT8wkg5tVhI3fw__',
               'https://www.jiosaavn.com/featured/trending-pop-tamil/5z8vKjNnhmIGSw2I1RxdhQ__',
+              'https://www.jiosaavn.com/featured/lets-play-anirudh-ravichander-tamil/ePUVUJs1h,E_',
               'https://www.jiosaavn.com/featured/lets-play-vijay/-KAZYpBulyM_',
             ],
           ),
@@ -59,7 +60,9 @@ class _HomeScreenState extends State<HomeScreen> {
             playlistUrls: [
               'https://www.jiosaavn.com/featured/chaya-friends-club/yO,WwRUN3CHfemJ68FuXsA__',
               'https://www.jiosaavn.com/featured/best-of-dance-malayalam/AJiiA8-w,u3ufxkxMEIbIw__',
+              'https://www.jiosaavn.com/featured/lets-play-sushin-shyam-malayalam/QtJNHKsL92FFo9wdEAzFBA__',
               'https://www.jiosaavn.com/featured/best-of-romance-malayalam/CBJDUkJa-c-c1EngHtQQ2g__',
+              'https://www.jiosaavn.com/featured/lets-play-jakes-bejoy-malayalam/-x5OEMrsb-bc1EngHtQQ2g__'
             ],
           ),
           PlaylistSection(
@@ -68,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
               'https://www.jiosaavn.com/featured/trending-today/I3kvhipIy73uCJW60TJk1Q__',
               'https://www.jiosaavn.com/featured/most-streamed-love-songs-hindi/RQKZhDpGh8uAIonqf0gmcg__',
               'https://www.jiosaavn.com/featured/lets-play-lana-del-rey/tfSGFDM5b4eO0eMLZZxqsA__',
+              'https://www.jiosaavn.com/featured/lets-play-billie-eilish/9FW8zUEIHh9ieSJqt9HmOQ__',
             ],
           ),
         ];

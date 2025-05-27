@@ -5,7 +5,7 @@ import '../models/album.dart';
 import '../models/playlist.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://web-production-aa71.up.railway.app';
+  static const String baseUrl = 'https://jiosaavnapi-bok7.onrender.com';
 
   Future<Map<String, dynamic>> search(String query) async {
     try {
