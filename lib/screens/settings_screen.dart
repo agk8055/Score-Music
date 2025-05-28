@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/play_history_service.dart';
 import 'home_customization_screen.dart';
+import 'profile_screen.dart';
+import 'backend_url_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   final PlayHistoryService historyService;
@@ -142,11 +144,46 @@ class SettingsScreen extends StatelessWidget {
                 'Change the backend server URL',
                 style: TextStyle(color: Colors.grey),
               ),
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BackendUrlScreen(),
+                  ),
+                );
+                
+                if (result == true && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Backend URL updated'),
+                      backgroundColor: Color(0xFF1A1A1A),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            color: const Color(0xFF1A1A1A),
+            child: ListTile(
+              leading: const Icon(
+                Icons.person,
+                color: Color(0xFFF5D505),
+              ),
+              title: const Text(
+                'Profile',
+                style: TextStyle(color: Colors.white),
+              ),
+              subtitle: const Text(
+                'View and edit your profile settings',
+                style: TextStyle(color: Colors.grey),
+              ),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Backend URL update coming soon'),
-                    backgroundColor: Color(0xFF1A1A1A),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ProfileScreen(),
                   ),
                 );
               },

@@ -56,7 +56,7 @@ class MusicController extends StatelessWidget {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 8.0),
           decoration: BoxDecoration(
-            color: Colors.grey[900]?.withOpacity(0.8),
+            color: Colors.grey[900]?.withOpacity(0.97),
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -117,8 +117,8 @@ class MusicController extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => NowPlayingScreen(
-                                playerService: playerService,
-                                playlistService: playlistService,
+                                audioPlayer: playerService,
+                                playlistManager: playlistService,
                               ),
                             ),
                           );
@@ -150,8 +150,8 @@ class MusicController extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                               builder: (context) => NowPlayingScreen(
-                                playerService: playerService,
-                                playlistService: playlistService,
+                                audioPlayer: playerService,
+                                playlistManager: playlistService,
                               ),
                             ),
                           );

@@ -1,11 +1,21 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../models/playlist.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://jiosaavnapi-bok7.onrender.com';
+  static const String defaultBaseUrl = 'https://web-production-834e5.up.railway.app/';
+  static String baseUrl = defaultBaseUrl;
+
+  static Future<void> initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString('backend_url');
+    if (savedUrl != null) {
+      baseUrl = savedUrl;
+    }
+  }
 
   Future<Map<String, dynamic>> search(String query) async {
     try {

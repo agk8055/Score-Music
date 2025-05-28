@@ -27,7 +27,6 @@ class BaseScaffold extends StatelessWidget {
     return Scaffold(
       appBar: appBar,
       drawer: drawer,
-      bottomNavigationBar: bottomNavigationBar,
       body: StreamBuilder<Song?>(
         stream: playerService.currentSongStream,
         builder: (context, snapshot) {
@@ -35,15 +34,19 @@ class BaseScaffold extends StatelessWidget {
           final showController = song != null;
           return Stack(
             children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: showController ? 85 : 0),
-                child: body,
-              ),
-              if (showController)
+              body,
+              if (bottomNavigationBar != null)
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
+                  child: bottomNavigationBar!,
+                ),
+              if (showController)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 76,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     height: 85,

@@ -17,7 +17,7 @@ class MusicPlayerService {
   bool _isShuffleOn = false;
   final _currentSongController = StreamController<Song?>.broadcast();
   final List<Song> _queue = [];
-  final List<Song> _previousSongs = [];
+  final List<Song> _historyStack = [];
   final _queueController = StreamController<List<Song>>.broadcast();
   final _shuffleController = StreamController<bool>.broadcast();
 
@@ -79,8 +79,9 @@ class MusicPlayerService {
     await _audioPlayer.stop();
     _isInitialized = false;
 
+    // Add current song to history stack if it exists
     if (_currentSong != null) {
-      _previousSongs.add(_currentSong!);
+      _historyStack.add(_currentSong!);
     }
 
     _currentSong = song;
@@ -152,6 +153,11 @@ class MusicPlayerService {
       }
     }
 
+    // Add current song to history stack before playing next
+    if (_currentSong != null) {
+      _historyStack.add(_currentSong!);
+    }
+
     Song nextSong;
     if (_isShuffleOn) {
       final random = Random();
@@ -181,14 +187,25 @@ class MusicPlayerService {
   }
 
   Future<void> playPrevious() async {
-    if (_previousSongs.isNotEmpty) {
-      final previousSong = _previousSongs.removeLast();
-      await playSong(previousSong);
+    if (_historyStack.isEmpty) {
+      return;
     }
+
+    // Get the previous song from history stack
+    final previousSong = _historyStack.removeLast();
+    
+    // Add current song to front of queue if it exists
+    if (_currentSong != null) {
+      _queue.insert(0, _currentSong!);
+      _queueController.add(_queue);
+    }
+
+    // Play the previous song
+    await playSong(previousSong);
   }
 
-  void clearPreviousSongs() {
-    _previousSongs.clear();
+  void clearHistory() {
+    _historyStack.clear();
   }
 
   Future<void> pause() async {
