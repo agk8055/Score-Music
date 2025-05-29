@@ -41,22 +41,31 @@ class _BackendUrlScreenState extends State<BackendUrlScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('backend_url', _urlController.text);
+      ApiService.baseUrl = _urlController.text;
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Backend URL updated successfully'),
+            content: Text('URL updated'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
             backgroundColor: Color(0xFF1A1A1A),
+            margin: EdgeInsets.all(8),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error saving URL: $e'),
+            content: Text('Error: $e'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.red,
+            margin: EdgeInsets.all(8),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         );
       }

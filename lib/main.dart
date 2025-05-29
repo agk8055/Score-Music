@@ -156,6 +156,7 @@ class MyHomePage extends StatefulWidget {
   final SearchCacheService searchCacheService;
   final SearchStateProvider searchStateProvider;
   final PlaylistService playlistService;
+  final int initialIndex;
   
   const MyHomePage({
     super.key, 
@@ -164,6 +165,7 @@ class MyHomePage extends StatefulWidget {
     required this.searchCacheService,
     required this.searchStateProvider,
     required this.playlistService,
+    this.initialIndex = 0,
   });
 
   @override
@@ -171,11 +173,12 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     _checkFirstLaunch();
   }
 

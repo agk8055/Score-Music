@@ -7,7 +7,12 @@ import '../services/download_service.dart';
 import '../services/playlist_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/bottom_navigation.dart';
+import '../widgets/skeleton_loader.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/play_history_service.dart';
+import '../services/search_cache_service.dart';
+import '../main.dart';  // This contains SearchStateProvider and MyHomePage
 
 class AlbumDetailsScreen extends StatefulWidget {
   final Album album;
@@ -85,15 +90,22 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
   Future<void> _loadMoreSongs() async {
     if (_isLoadingMore) return;
 
-    final allSongs = await _apiService.getAlbumDetails(widget.album.url);
-    final startIndex = _currentPage * _songsPerPage;
-    if (startIndex >= allSongs.length) return;
-
     setState(() {
       _isLoadingMore = true;
+      _error = null;
     });
 
     try {
+      final allSongs = await _apiService.getAlbumDetails(widget.album.url);
+      final startIndex = _currentPage * _songsPerPage;
+      
+      if (startIndex >= allSongs.length) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+        return;
+      }
+
       final endIndex = (startIndex + _songsPerPage) > allSongs.length
           ? allSongs.length
           : startIndex + _songsPerPage;
@@ -108,7 +120,21 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
     } catch (e) {
       setState(() {
         _isLoadingMore = false;
+        _error = e.toString();
       });
+      
+      // Show error snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load more songs: ${e.toString()}'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _loadMoreSongs,
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -117,99 +143,193 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
     return BaseScaffold(
       playerService: widget.playerService,
       playlistService: widget.playlistService,
-      appBar: AppBar(
-        title: Text(
-          widget.album.name,
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF1A1A1A),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
       bottomNavigationBar: BottomNavigation(
         selectedIndex: 2,
-        onDestinationSelected: (index) {},
+        onDestinationSelected: (index) async {
+          if (index == 2) {
+            Navigator.pop(context);
+          } else {
+            final prefs = await SharedPreferences.getInstance();
+            final historyService = PlayHistoryService(prefs);
+            final searchCacheService = SearchCacheService(prefs);
+            final searchStateProvider = SearchStateProvider(searchCacheService);
+            
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MyHomePage(
+                  playerService: widget.playerService,
+                  historyService: historyService,
+                  searchCacheService: searchCacheService,
+                  searchStateProvider: searchStateProvider,
+                  playlistService: widget.playlistService,
+                  initialIndex: index,
+                ),
+              ),
+            );
+          }
+        },
         isLibraryScreen: true,
       ),
       body: _error != null
           ? Center(
-              child: Text(
-                _error!,
-                style: const TextStyle(color: Colors.red),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                    const SizedBox(height: 16),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadAlbumSongs,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFF5D505),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: const Text(
+                        'Retry',
+                        style: TextStyle(color: Colors.black),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           : _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? _buildSkeletonLoader()
               : CustomScrollView(
                   controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
                   slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          AspectRatio(
-                            aspectRatio: 1,
-                            child: Image.network(
-                              widget.album.image,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  color: Colors.grey[800],
-                                  child: const Icon(
-                                    Icons.album,
-                                    size: 100,
-                                    color: Colors.white54,
-                                  ),
-                                );
-                              },
+                    SliverAppBar(
+                      expandedHeight: MediaQuery.of(context).size.width * 0.8,
+                      flexibleSpace: FlexibleSpaceBar(
+                        background: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Image.network(
+                                widget.album.image,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    color: Colors.grey[900],
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.album,
+                                        size: 100,
+                                        color: Colors.white54,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        widget.album.name,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        if (_albumSongs.isNotEmpty) {
-                                          widget.playerService.playSong(_albumSongs[0], album: widget.album);
-                                          // Add remaining songs to queue
-                                          for (var i = 1; i < _albumSongs.length; i++) {
-                                            widget.playerService.addToQueue(_albumSongs[i]);
-                                          }
-                                        }
-                                      },
-                                      icon: const Icon(
-                                        Icons.play_circle_fill,
-                                        size: 48,
-                                        color: Color(0xFFF5D505),
-                                      ),
-                                    ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    Colors.black.withOpacity(0.8),
+                                    Colors.black.withOpacity(0.2),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.album.primaryArtists,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    widget.album.name,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(width: 16),
+                                GestureDetector(
+                                  onTap: () {
+                                    if (_albumSongs.isNotEmpty) {
+                                      widget.playerService.playSong(_albumSongs[0], album: widget.album);
+                                      for (var i = 1; i < _albumSongs.length; i++) {
+                                        widget.playerService.addToQueue(_albumSongs[i]);
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF5D505),
+                                      borderRadius: BorderRadius.circular(28),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFF5D505).withOpacity(0.4),
+                                          blurRadius: 10,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.play_arrow,
+                                      size: 32,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.album.primaryArtists,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
                                 Text(
-                                  '${widget.album.year} • ${widget.album.language}',
+                                  widget.album.year,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[400],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                  child: Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[400],
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  widget.album.language,
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[400],
@@ -217,242 +337,264 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            const Divider(color: Colors.white24),
+                          ],
+                        ),
                       ),
                     ),
-                    _isLoadingMore
-                        ? SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 56,
-                                      height: 56,
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[800],
-                                        borderRadius: BorderRadius.circular(4),
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index >= _albumSongs.length) {
+                            return _isLoadingMore
+                                ? Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFF5D505)),
                                       ),
                                     ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Container(
-                                            width: double.infinity,
-                                            height: 16,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[800],
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Container(
-                                            width: 120,
-                                            height: 12,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[800],
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              childCount: 10,
+                                  )
+                                : const SizedBox.shrink();
+                          }
+                          
+                          final song = _albumSongs[index];
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[900]!.withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          )
-                        : SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                if (index == _albumSongs.length && _isLoadingMore) {
-                                  return const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16.0),
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                }
-                                final song = _albumSongs[index];
-                                return ListTile(
-                                  leading: Stack(
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              leading: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey[800],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Stack(
                                     alignment: Alignment.center,
                                     children: [
-                                      SizedBox(
-                                        width: 64,
-                                        height: 64,
-                                        child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(4),
-                                              child: Image.network(
-                                                song.image,
-                                                width: 56,
-                                                height: 56,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error, stackTrace) {
-                                                  return Container(
-                                                    width: 56,
-                                                    height: 56,
-                                                    color: Colors.grey[800],
-                                                    child: const Icon(Icons.music_note),
-                                                  );
-                                                },
-                                              ),
+                                      Image.network(
+                                        song.image,
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            color: Colors.grey[800],
+                                            child: const Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
                                             ),
-                                            if (_downloadingSongId == song.id && _downloadProgress[song.id] != null)
-                                              CircularProgressIndicator(
-                                                value: _downloadProgress[song.id],
-                                                strokeWidth: 4,
-                                                backgroundColor: Colors.white24,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF5D505)),
-                                              ),
-                                          ],
-                                        ),
+                                          );
+                                        },
                                       ),
                                       if (_downloadingSongId == song.id && _downloadProgress[song.id] != null)
-                                        Positioned(
-                                          top: 4,
-                                          right: 4,
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              _cancelTokens[song.id]?.cancel();
-                                            },
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: Colors.black.withOpacity(0.7),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              padding: const EdgeInsets.all(2),
-                                              child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                        Container(
+                                          color: Colors.black54,
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              value: _downloadProgress[song.id],
+                                              strokeWidth: 3,
+                                              backgroundColor: Colors.white24,
+                                              valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFF5D505)),
                                             ),
                                           ),
                                         ),
                                     ],
                                   ),
-                                  title: Text(
-                                    song.title,
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: Text(
-                                    song.primaryArtists,
-                                    style: const TextStyle(color: Colors.white70),
-                                  ),
-                                  trailing: PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert, color: Colors.white70),
-                                    onSelected: (value) async {
-                                      if (value == 'play') {
-                                        widget.playerService.playSong(song);
-                                      } else if (value == 'add_to_queue') {
-                                        widget.playerService.addToQueue(song);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Added to queue'),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      } else if (value == 'download') {
-                                        setState(() {
-                                          _downloadingSongId = song.id;
-                                          _downloadProgress[song.id] = 0.0;
-                                        });
-                                        final downloadService = DownloadService();
-                                        final cancelToken = CancelToken();
-                                        _cancelTokens[song.id] = cancelToken;
-                                        try {
-                                          await downloadService.downloadSong(
-                                            song,
-                                            onProgress: (progress) {
-                                              setState(() {
-                                                _downloadProgress[song.id] = progress;
-                                              });
-                                            },
-                                            cancelToken: cancelToken,
-                                          );
-                                          if (!cancelToken.isCancelled) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Song downloaded successfully'),
-                                              ),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          if (cancelToken.isCancelled) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Download cancelled'),
-                                              ),
-                                            );
-                                          } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Download failed: $e'),
-                                              ),
-                                            );
-                                          }
-                                        } finally {
-                                          setState(() {
-                                            _downloadingSongId = null;
-                                            _downloadProgress.remove(song.id);
-                                            _cancelTokens.remove(song.id);
-                                          });
-                                        }
-                                      }
+                                ),
+                              ),
+                              title: Text(
+                                song.title,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                song.primaryArtists,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.more_vert, color: Colors.white70),
+                                onPressed: () {
+                                  showModalBottomSheet(
+                                    context: context,
+                                    backgroundColor: Colors.grey[900],
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                    ),
+                                    builder: (context) {
+                                      return SafeArea(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            ListTile(
+                                              leading: const Icon(Icons.play_arrow, color: Colors.white),
+                                              title: const Text('Play Now', style: TextStyle(color: Colors.white)),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                widget.playerService.playSong(song);
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.queue_music, color: Colors.white),
+                                              title: const Text('Add to Queue', style: TextStyle(color: Colors.white)),
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                widget.playerService.addToQueue(song);
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: const Text('Added to queue'),
+                                                    backgroundColor: const Color(0xFFF5D505),
+                                                    duration: const Duration(seconds: 2),
+                                                    behavior: SnackBarBehavior.floating,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                            ListTile(
+                                              leading: const Icon(Icons.download, color: Colors.white),
+                                              title: const Text('Download', style: TextStyle(color: Colors.white)),
+                                              onTap: () async {
+                                                Navigator.pop(context);
+                                                setState(() {
+                                                  _downloadingSongId = song.id;
+                                                  _downloadProgress[song.id] = 0.0;
+                                                });
+                                                final downloadService = DownloadService();
+                                                final cancelToken = CancelToken();
+                                                _cancelTokens[song.id] = cancelToken;
+                                                try {
+                                                  await downloadService.downloadSong(
+                                                    song,
+                                                    onProgress: (progress) {
+                                                      setState(() {
+                                                        _downloadProgress[song.id] = progress;
+                                                      });
+                                                    },
+                                                    cancelToken: cancelToken,
+                                                  );
+                                                  if (!cancelToken.isCancelled) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: const Text('Song downloaded successfully'),
+                                                        backgroundColor: const Color(0xFFF5D505),
+                                                        behavior: SnackBarBehavior.floating,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                } catch (e) {
+                                                  if (!cancelToken.isCancelled) {
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('Download failed: ${e.toString()}'),
+                                                        backgroundColor: Colors.red,
+                                                        behavior: SnackBarBehavior.floating,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius: BorderRadius.circular(8),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                } finally {
+                                                  setState(() {
+                                                    _downloadingSongId = null;
+                                                    _downloadProgress.remove(song.id);
+                                                    _cancelTokens.remove(song.id);
+                                                  });
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
                                     },
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(
-                                        value: 'play',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.play_arrow, color: Colors.white),
-                                            SizedBox(width: 8),
-                                            Text('Play Now'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'add_to_queue',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.queue_music, color: Colors.white),
-                                            SizedBox(width: 8),
-                                            Text('Add to Queue'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'download',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.download, color: Colors.white),
-                                            SizedBox(width: 8),
-                                            Text('Download'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  onTap: () {
-                                    widget.playerService.playSong(song, album: widget.album);
-                                    // Add remaining songs to queue
-                                    final currentIndex = _albumSongs.indexOf(song);
-                                    for (var i = currentIndex + 1; i < _albumSongs.length; i++) {
-                                      widget.playerService.addToQueue(_albumSongs[i]);
-                                    }
-                                  },
-                                );
+                                  );
+                                },
+                              ),
+                              onTap: () {
+                                widget.playerService.playSong(song, album: widget.album);
+                                final currentIndex = _albumSongs.indexOf(song);
+                                for (var i = currentIndex + 1; i < _albumSongs.length; i++) {
+                                  widget.playerService.addToQueue(_albumSongs[i]);
+                                }
                               },
-                              childCount: _albumSongs.length + (_isLoadingMore ? 1 : 0),
                             ),
-                          ),
+                          );
+                        },
+                        childCount: _albumSongs.length + (_isLoadingMore ? 1 : 0),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 150),
+                    ),
                   ],
                 ),
     );
   }
-} 
+
+  Widget _buildSkeletonLoader() {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: MediaQuery.of(context).size.width * 0.8,
+          flexibleSpace: const SkeletonLoader(
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SkeletonLoader(width: 200, height: 32),
+                const SizedBox(height: 16),
+                const SkeletonLoader(width: 150, height: 24),
+                const SizedBox(height: 16),
+                const SkeletonLoader(width: 100, height: 20),
+                const SizedBox(height: 24),
+                const Divider(color: Colors.white24),
+              ],
+            ),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildListDelegate([
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+            SongSkeletonLoader(),
+          ]),
+        ),
+      ],
+    );
+  }
+}

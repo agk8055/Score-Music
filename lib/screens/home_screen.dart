@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../services/music_player_service.dart';
 import '../services/play_history_service.dart';
 import '../services/playlist_service.dart';
+import '../services/playlist_cache_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/play_history_section.dart';
 import '../widgets/playlist_category_section.dart';
@@ -80,6 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onRefresh() async {
+    // Clear the playlist cache to force reload
+    PlaylistCacheService().clearCache();
+    // Reload the configuration
     await _loadConfiguration();
   }
 

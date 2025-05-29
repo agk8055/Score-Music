@@ -6,7 +6,7 @@ import '../models/album.dart';
 import '../models/playlist.dart';
 
 class ApiService {
-  static const String defaultBaseUrl = 'https://web-production-834e5.up.railway.app/';
+  static const String defaultBaseUrl = 'https://jiosaavnapi-tyye.onrender.com/';
   static String baseUrl = defaultBaseUrl;
 
   static Future<void> initialize() async {
@@ -75,8 +75,17 @@ class ApiService {
 
   Future<List<Song>> getAlbumDetails(String albumUrl) async {
     try {
+      if (albumUrl.isEmpty) {
+        throw Exception('Album URL cannot be empty');
+      }
+
       final response = await http.get(
         Uri.parse('$baseUrl/album/?query=$albumUrl'),
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Request timed out. Please check your internet connection.');
+        },
       );
 
       if (response.statusCode == 200) {
@@ -86,11 +95,17 @@ class ApiService {
           return songsData.map((json) => Song.fromJson(json)).toList();
         }
         return [];
+      } else if (response.statusCode == 404) {
+        throw Exception('Album not found');
+      } else if (response.statusCode >= 500) {
+        throw Exception('Server error. Please try again later.');
       } else {
-        throw Exception('Failed to load album details');
+        throw Exception('Failed to load album details (Status: ${response.statusCode})');
       }
     } catch (e) {
-      print('Error loading album details: $e');
+      if (e is Exception) {
+        rethrow;
+      }
       throw Exception('Error loading album details: $e');
     }
   }
