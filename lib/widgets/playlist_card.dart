@@ -5,6 +5,7 @@ import '../services/music_player_service.dart';
 import '../services/playlist_cache_service.dart';
 import '../services/playlist_service.dart';
 import '../screens/playlist_details_screen.dart';
+import 'skeleton_loader.dart';
 
 class PlaylistCard extends StatefulWidget {
   final String playlistUrl;
@@ -37,7 +38,6 @@ class _PlaylistCardState extends State<PlaylistCard> {
 
   Future<void> _loadPlaylist() async {
     try {
-      // Check cache first
       if (_cacheService.hasCachedPlaylist(widget.playlistUrl)) {
         setState(() {
           _playlist = _cacheService.getCachedPlaylist(widget.playlistUrl);
@@ -47,7 +47,6 @@ class _PlaylistCardState extends State<PlaylistCard> {
       }
 
       final playlist = await _apiService.getPlaylistDetails(widget.playlistUrl);
-      // Cache the playlist
       _cacheService.cachePlaylist(playlist);
       
       setState(() {
@@ -64,87 +63,86 @@ class _PlaylistCardState extends State<PlaylistCard> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return Container(
-        width: 160,
-        height: 200,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_error != null || _playlist == null) {
-      return Container(
-        width: 160,
-        height: 200,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.grey[800],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.error_outline, color: Colors.white54),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PlaylistDetailsScreen(
-              playerService: widget.playerService,
-              playlistUrl: widget.playlistUrl,
-              initialPlaylist: _playlist,
-              playlistService: widget.playlistService,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                _playlist!.image,
-                width: 160,
-                height: 160,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 160,
-                    height: 160,
-                    color: Colors.grey[800],
-                    child: const Icon(Icons.playlist_play, size: 50, color: Colors.white54),
-                  );
-                },
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      child: GestureDetector(
+        onTap: _playlist == null ? null : () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PlaylistDetailsScreen(
+                playerService: widget.playerService,
+                playlistUrl: widget.playlistUrl,
+                initialPlaylist: _playlist,
+                playlistService: widget.playlistService,
               ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Image container with fixed height
+            Container(
               width: 160,
-              child: Text(
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: _isLoading
+                  ? const SkeletonLoader(width: 160, height: 160, borderRadius: 16)
+                  : (_error != null || _playlist == null)
+                      ? Container(
+                          color: Colors.grey[900],
+                          child: const Center(
+                            child: Icon(Icons.error_outline, color: Colors.white54, size: 40),
+                          ),
+                        )
+                      : Image.network(
+                          _playlist!.image,
+                          width: 160,
+                          height: 160,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 160,
+                              height: 160,
+                              color: Colors.grey[900],
+                              child: const Icon(Icons.playlist_play, size: 50, color: Colors.white54),
+                            );
+                          },
+                        ),
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Text content
+            if (!_isLoading && _playlist != null && _error == null) ...[
+              Text(
                 _playlist!.name,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              width: 160,
-              child: Text(
+              const SizedBox(height: 4),
+              Text(
                 '${_playlist!.fanCount} Fans',
                 style: TextStyle(
                   color: Colors.grey[400],
@@ -153,10 +151,18 @@ class _PlaylistCardState extends State<PlaylistCard> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            ),
+            ],
+            
+            // Skeleton text placeholders
+            if (_isLoading) ...[
+              const SizedBox(height: 8),
+              const SkeletonLoader(width: 140, height: 14, borderRadius: 4),
+              const SizedBox(height: 4),
+              const SkeletonLoader(width: 80, height: 12, borderRadius: 4),
+            ],
           ],
         ),
       ),
     );
   }
-} 
+}

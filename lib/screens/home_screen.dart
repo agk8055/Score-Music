@@ -8,6 +8,7 @@ import '../services/playlist_cache_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/play_history_section.dart';
 import '../widgets/playlist_category_section.dart';
+import '../widgets/skeleton_loader.dart'; // Import skeleton loader
 
 class HomeScreen extends StatefulWidget {
   final MusicPlayerService playerService;
@@ -27,6 +28,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<PlaylistSection> sections = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final List<dynamic> decoded = json.decode(savedConfig);
       setState(() {
         sections = decoded.map((item) => PlaylistSection.fromJson(item)).toList();
+        _isLoading = false;
       });
     } else {
       // Load default configuration
@@ -76,36 +79,124 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ];
+        _isLoading = false;
       });
     }
   }
 
   Future<void> _onRefresh() async {
-    // Clear the playlist cache to force reload
+    setState(() => _isLoading = true);
     PlaylistCacheService().clearCache();
-    // Reload the configuration
     await _loadConfiguration();
+  }
+
+  Widget _buildSkeletonLoader() {
+    return ListView(
+      children: [
+        // Skeleton for history section
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+              child: SkeletonLoader(width: 180, height: 24, borderRadius: 4),
+            ),
+            SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                itemCount: 4,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Column(
+                      children: [
+                        const SkeletonLoader(width: 140, height: 140, borderRadius: 12),
+                        const SizedBox(height: 8),
+                        SkeletonLoader(
+                          width: 140,
+                          height: 16,
+                          borderRadius: 4,
+                        ),
+                        const SizedBox(height: 4),
+                        SkeletonLoader(
+                          width: 100,
+                          height: 14,
+                          borderRadius: 4,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        // Skeleton for category sections
+        for (int i = 0; i < 3; i++)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SkeletonLoader(width: 120, height: 24, borderRadius: 4),
+              ),
+              SizedBox(
+                height: 220,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 4,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SkeletonLoader(width: 160, height: 160, borderRadius: 12),
+                          const SizedBox(height: 8),
+                          SkeletonLoader(width: 140, height: 16, borderRadius: 4),
+                          const SizedBox(height: 4),
+                          SkeletonLoader(width: 80, height: 14, borderRadius: 4),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      child: ListView(
-        children: [
-          PlayHistorySection(
-            historyService: widget.historyService,
-            playerService: widget.playerService,
-            playlistService: widget.playlistService,
-          ),
-          ...sections.map((section) => PlaylistCategorySection(
-            playerService: widget.playerService,
-            playlistService: widget.playlistService,
-            title: section.title,
-            playlistUrls: section.playlistUrls,
-          )).toList(),
-        ],
-      ),
+      color: const Color(0xFFF5D505),
+      child: _isLoading
+          ? _buildSkeletonLoader()
+          : CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: PlayHistorySection(
+                    historyService: widget.historyService,
+                    playerService: widget.playerService,
+                    playlistService: widget.playlistService,
+                  ),
+                ),
+                ...sections.map((section) => SliverToBoxAdapter(
+                  child: PlaylistCategorySection(
+                    playerService: widget.playerService,
+                    playlistService: widget.playlistService,
+                    title: section.title,
+                    playlistUrls: section.playlistUrls,
+                  ),
+                )).toList(),
+                const SliverPadding(padding: EdgeInsets.only(bottom: 80)),
+              ],
+            ),
     );
   }
 }
@@ -125,4 +216,4 @@ class PlaylistSection {
       playlistUrls: List<String>.from(json['playlistUrls']),
     );
   }
-} 
+}

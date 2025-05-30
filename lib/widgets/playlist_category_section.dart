@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/music_player_service.dart';
 import '../services/playlist_service.dart';
 import 'playlist_card.dart';
+import 'skeleton_loader.dart'; // Import skeleton loader
 
 class PlaylistCategorySection extends StatefulWidget {
   final MusicPlayerService playerService;
@@ -28,13 +29,14 @@ class _PlaylistCategorySectionState extends State<PlaylistCategorySection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Text(
             widget.title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
           ),
         ),
@@ -42,6 +44,7 @@ class _PlaylistCategorySectionState extends State<PlaylistCategorySection> {
           height: 220,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(left: 12, right: 12),
             itemCount: widget.playlistUrls.length,
             itemBuilder: (context, index) {
               return PlaylistCard(
@@ -52,7 +55,8 @@ class _PlaylistCategorySectionState extends State<PlaylistCategorySection> {
             },
           ),
         ),
+        const SizedBox(height: 16),
       ],
     );
   }
-} 
+}
