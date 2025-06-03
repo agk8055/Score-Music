@@ -7,8 +7,7 @@ import '../models/song.dart';
 import '../widgets/playlist_selection_dialog.dart';
 import '../widgets/custom_progress_indicator.dart';
 import '../screens/queue_screen.dart';
-import 'package:wave/config.dart';
-import 'package:wave/wave.dart';
+import '../widgets/audio_visualizer.dart'; // Import the new visualizer
 
 class NowPlayingScreen extends StatelessWidget {
   final MusicPlayerService audioPlayer;
@@ -430,6 +429,7 @@ class NowPlayingScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                // Audio Visualizer
                 StreamBuilder<PlayerState>(
                   stream: audioPlayer.playerStateStream,
                   builder: (context, snapshot) {
@@ -573,30 +573,5 @@ class NowPlayingScreen extends StatelessWidget {
     final minutes = twoDigits(duration.inMinutes.remainder(60));
     final seconds = twoDigits(duration.inSeconds.remainder(60));
     return '$minutes:$seconds';
-  }
-}
-
-class AudioVisualizer extends StatelessWidget {
-  const AudioVisualizer({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return WaveWidget(
-      config: CustomConfig(
-        gradients: [
-          [const Color(0xFFF5D505), const Color(0xFFF5D505)], // pure yellow
-          [Colors.white, const Color(0xFFF5D505)],
-          [const Color(0xFFF5D505), Colors.white],
-          [const Color(0xFFF5D505), const Color(0xFFF5D505)], // pure yellow
-          [const Color(0xFFF5D505), Colors.white],
-        ],
-        durations: [35000, 30000, 25000, 20000, 15000],
-        heightPercentages: [0.2, 0.4, 0.6, 0.8, 1.0],
-        gradientBegin: Alignment.bottomLeft,
-        gradientEnd: Alignment.topRight,
-      ),
-      waveAmplitude: 3.0,
-      size: const Size(double.infinity, double.infinity),
-    );
   }
 }

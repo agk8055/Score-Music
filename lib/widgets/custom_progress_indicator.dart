@@ -16,22 +16,47 @@ class CustomLinearProgressIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(height / 2),
-      child: Container(
-        height: height,
-        color: backgroundColor,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: FractionallySizedBox(
-            widthFactor: value.clamp(0.0, 1.0),
-            child: Container(
-              height: height,
-              color: valueColor,
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Background track
+        ClipRRect(
+          borderRadius: BorderRadius.circular(height / 2),
+          child: Container(
+            height: height,
+            color: backgroundColor,
+          ),
+        ),
+        
+        // Progress track with glow effect
+        Positioned(
+          left: 0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            width: MediaQuery.of(context).size.width * value.clamp(0.0, 1.0),
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(height / 2),
+              gradient: LinearGradient(
+                colors: [
+                  valueColor,
+                  valueColor.withOpacity(0.8),
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: valueColor.withOpacity(0.5),
+                  blurRadius: 6,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
           ),
         ),
-      ),
+      ],
     );
   }
-} 
+}

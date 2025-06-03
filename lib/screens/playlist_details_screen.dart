@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';  // Import main.dart to access MyHomePage and SearchStateProvider
 import '../services/play_history_service.dart';
 import '../services/search_cache_service.dart';
+import '../widgets/skeleton_loader.dart';
 
 class PlaylistDetailsScreen extends StatefulWidget {
   final MusicPlayerService playerService;
@@ -214,7 +215,9 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
             )
           : _playlist == null
               ? const Center(child: Text('Playlist not found'))
-              : CustomScrollView(
+              : _isLoading
+                  ? _buildSkeletonLoader()
+                  : CustomScrollView(
                   controller: _scrollController,
                   physics: const BouncingScrollPhysics(),
                   slivers: [
@@ -498,146 +501,141 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                                 _cancelTokens[song.id]?.cancel();
                                               },
                                             ),
-                                          PopupMenuButton<String>(
+                                          IconButton(
                                             icon: const Icon(Icons.more_vert,
                                                 color: Colors.white70),
-                                            onSelected: (value) async {
-                                              if (value == 'play') {
-                                                widget.playerService.playSong(song, playlist: _playlist);
-                                                for (var i = _songs.indexOf(song) + 1; 
-                                                    i < _playlist!.contentList.length; i++) {
-                                                  if (i < _songs.length) {
-                                                    widget.playerService.addToQueue(_songs[i]);
-                                                  } else {
-                                                    _apiService.getPlaylistSongs([_playlist!.contentList[i]])
-                                                        .then((newSongs) {
-                                                      if (newSongs.isNotEmpty) {
-                                                        widget.playerService.addToQueue(newSongs[0]);
-                                                      }
-                                                    });
-                                                  }
-                                                }
-                                              } else if (value == 'add_to_queue') {
-                                                widget.playerService.addToQueue(song);
-                                                if (mounted) {
-                                                  ScaffoldMessenger.of(context).showSnackBar(
-                                                    SnackBar(
-                                                      content: const Text('Added to queue'),
-                                                      backgroundColor: const Color(0xFFF5D505),
-                                                      behavior: SnackBarBehavior.floating,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
+                                            onPressed: () {
+                                              showModalBottomSheet(
+                                                context: context,
+                                                backgroundColor: Colors.grey[900],
+                                                shape: const RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                                ),
+                                                builder: (context) {
+                                                  return SafeArea(
+                                                    child: Column(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        ListTile(
+                                                          leading: const Icon(Icons.play_arrow, color: Colors.white),
+                                                          title: const Text('Play Now', style: TextStyle(color: Colors.white)),
+                                                          onTap: () {
+                                                            Navigator.pop(context);
+                                                            widget.playerService.playSong(song, playlist: _playlist);
+                                                            for (var i = _songs.indexOf(song) + 1; 
+                                                                i < _playlist!.contentList.length; i++) {
+                                                              if (i < _songs.length) {
+                                                                widget.playerService.addToQueue(_songs[i]);
+                                                              } else {
+                                                                _apiService.getPlaylistSongs([_playlist!.contentList[i]])
+                                                                    .then((newSongs) {
+                                                                  if (newSongs.isNotEmpty) {
+                                                                    widget.playerService.addToQueue(newSongs[0]);
+                                                                  }
+                                                                });
+                                                              }
+                                                            }
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: const Icon(Icons.queue_music, color: Colors.white),
+                                                          title: const Text('Add to Queue', style: TextStyle(color: Colors.white)),
+                                                          onTap: () {
+                                                            Navigator.pop(context);
+                                                            widget.playerService.addToQueue(song);
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: const Text('Added to queue'),
+                                                                backgroundColor: const Color(0xFFF5D505),
+                                                                behavior: SnackBarBehavior.floating,
+                                                                shape: RoundedRectangleBorder(
+                                                                  borderRadius: BorderRadius.circular(8),
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: const Icon(Icons.download, color: Colors.white),
+                                                          title: const Text('Download', style: TextStyle(color: Colors.white)),
+                                                          onTap: () async {
+                                                            Navigator.pop(context);
+                                                            setState(() {
+                                                              _downloadingSongId = song.id;
+                                                              _downloadProgress[song.id] = 0.0;
+                                                            });
+                                                            final downloadService = DownloadService();
+                                                            final cancelToken = CancelToken();
+                                                            _cancelTokens[song.id] = cancelToken;
+                                                            try {
+                                                              await downloadService.downloadSong(
+                                                                song,
+                                                                onProgress: (progress) {
+                                                                  setState(() {
+                                                                    _downloadProgress[song.id] = progress;
+                                                                  });
+                                                                },
+                                                                cancelToken: cancelToken,
+                                                              );
+                                                              if (!cancelToken.isCancelled) {
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: const Text('Song downloaded successfully'),
+                                                                    backgroundColor: const Color(0xFFF5D505),
+                                                                    behavior: SnackBarBehavior.floating,
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius: BorderRadius.circular(8),
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            } catch (e) {
+                                                              if (cancelToken.isCancelled) {
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: const Text('Download cancelled'),
+                                                                    backgroundColor: Colors.grey[800],
+                                                                    behavior: SnackBarBehavior.floating,
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius: BorderRadius.circular(8),
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              } else {
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text('Download failed: $e'),
+                                                                    backgroundColor: Colors.red[800],
+                                                                    behavior: SnackBarBehavior.floating,
+                                                                    shape: RoundedRectangleBorder(
+                                                                      borderRadius: BorderRadius.circular(8),
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            } finally {
+                                                              setState(() {
+                                                                _downloadingSongId = null;
+                                                                _downloadProgress.remove(song.id);
+                                                                _cancelTokens.remove(song.id);
+                                                              });
+                                                            }
+                                                          },
+                                                        ),
+                                                        ListTile(
+                                                          leading: const Icon(Icons.playlist_add, color: Colors.white),
+                                                          title: const Text('Add to Playlist', style: TextStyle(color: Colors.white)),
+                                                          onTap: () {
+                                                            Navigator.pop(context);
+                                                            _showAddToPlaylistDialog(song);
+                                                          },
+                                                        ),
+                                                      ],
                                                     ),
                                                   );
-                                                }
-                                              } else if (value == 'download') {
-                                                setState(() {
-                                                  _downloadingSongId = song.id;
-                                                  _downloadProgress[song.id] = 0.0;
-                                                });
-                                                final downloadService = DownloadService();
-                                                final cancelToken = CancelToken();
-                                                _cancelTokens[song.id] = cancelToken;
-                                                try {
-                                                  await downloadService.downloadSong(
-                                                    song,
-                                                    onProgress: (progress) {
-                                                      setState(() {
-                                                        _downloadProgress[song.id] = progress;
-                                                      });
-                                                    },
-                                                    cancelToken: cancelToken,
-                                                  );
-                                                  if (!cancelToken.isCancelled) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(
-                                                        content: const Text('Song downloaded successfully'),
-                                                        backgroundColor: const Color(0xFFF5D505),
-                                                        behavior: SnackBarBehavior.floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                } catch (e) {
-                                                  if (cancelToken.isCancelled) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(
-                                                        content: const Text('Download cancelled'),
-                                                        backgroundColor: Colors.grey[800],
-                                                        behavior: SnackBarBehavior.floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  } else {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text('Download failed: $e'),
-                                                        backgroundColor: Colors.red[800],
-                                                        behavior: SnackBarBehavior.floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                } finally {
-                                                  setState(() {
-                                                    _downloadingSongId = null;
-                                                    _downloadProgress.remove(song.id);
-                                                    _cancelTokens.remove(song.id);
-                                                  });
-                                                }
-                                              } else if (value == 'add_to_playlist') {
-                                                _showAddToPlaylistDialog(song);
-                                              }
+                                                },
+                                              );
                                             },
-                                            itemBuilder: (context) => [
-                                              const PopupMenuItem(
-                                                value: 'play',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.play_arrow, color: Colors.white),
-                                                    SizedBox(width: 8),
-                                                    Text('Play Now', style: TextStyle(color: Colors.white)),
-                                                  ],
-                                                ),
-                                              ),
-                                              const PopupMenuItem(
-                                                value: 'add_to_queue',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.queue_music, color: Colors.white),
-                                                    SizedBox(width: 8),
-                                                    Text('Add to Queue', style: TextStyle(color: Colors.white)),
-                                                  ],
-                                                ),
-                                              ),
-                                              const PopupMenuItem(
-                                                value: 'download',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.download, color: Colors.white),
-                                                    SizedBox(width: 8),
-                                                    Text('Download', style: TextStyle(color: Colors.white)),
-                                                  ],
-                                                ),
-                                              ),
-                                              const PopupMenuItem(
-                                                value: 'add_to_playlist',
-                                                child: Row(
-                                                  children: [
-                                                    Icon(Icons.playlist_add, color: Colors.white),
-                                                    SizedBox(width: 8),
-                                                    Text('Add to Playlist', style: TextStyle(color: Colors.white)),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
                                           ),
                                         ],
                                       ),
@@ -666,6 +664,58 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                           ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildSkeletonLoader() {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 280,
+          flexibleSpace: const SkeletonLoader(
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: SkeletonLoader(
+                      width: double.infinity,
+                      height: 48,
+                      borderRadius: 8,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  SkeletonLoader(
+                    width: 48,
+                    height: 48,
+                    borderRadius: 8,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              SkeletonLoader(
+                width: 100,
+                height: 24,
+                borderRadius: 4,
+              ),
+              const SizedBox(height: 16),
+            ]),
+          ),
+        ),
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => const SongSkeletonLoader(),
+            childCount: 10,
+          ),
+        ),
+      ],
     );
   }
 }
