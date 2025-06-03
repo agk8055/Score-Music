@@ -5,7 +5,6 @@ import '../models/song.dart';
 import '../services/playlist_service.dart';
 import '../services/music_player_service.dart';
 import '../services/api_service.dart';
-import 'downloaded_songs_screen.dart';
 import 'user_playlist_details_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -110,30 +109,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  void _navigateToDownloadedSongs() {
-    if (!_isInitialized) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please wait while the library is loading...')),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => DownloadedSongsScreen(
-          playerService: widget.playerService,
-          playlistService: _playlistService,
-          selectedIndex: 2, // Library tab index
-          onDestinationSelected: (index) {
-            // Handle navigation if needed
-            Navigator.pop(context);
-          },
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,17 +117,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ElevatedButton.icon(
-              onPressed: _navigateToDownloadedSongs,
-              icon: const Icon(Icons.download_done),
-              label: const Text('Downloaded Songs'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF5D505),
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _isInitialized ? _showCreatePlaylistDialog : null,
               icon: const Icon(Icons.playlist_add),

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
-import '../services/download_service.dart';
 import '../services/playlist_service.dart';
 import '../models/song.dart';
 import '../widgets/playlist_selection_dialog.dart';
 import '../widgets/custom_progress_indicator.dart';
 import '../screens/queue_screen.dart';
 import '../widgets/audio_visualizer.dart'; // Import the new visualizer
+import 'package:url_launcher/url_launcher.dart';
 
-class NowPlayingScreen extends StatelessWidget {
+class NowPlayingScreen extends StatefulWidget {
   final MusicPlayerService audioPlayer;
   final PlaylistService playlistManager;
 
@@ -19,11 +19,16 @@ class NowPlayingScreen extends StatelessWidget {
     required this.playlistManager,
   });
 
+  @override
+  State<NowPlayingScreen> createState() => _NowPlayingScreenState();
+}
+
+class _NowPlayingScreenState extends State<NowPlayingScreen> {
   void _showPlaylistSelection(BuildContext context, Song currentTrack) {
     showDialog(
       context: context,
       builder: (context) => PlaylistSelectionDialog(
-        playlistService: playlistManager,
+        playlistService: widget.playlistManager,
         songId: currentTrack.id,
       ),
     );
@@ -45,7 +50,7 @@ class NowPlayingScreen extends StatelessWidget {
           ),
           child: SingleChildScrollView(
             controller: scrollController,
-            child: QueueScreen(playerService: audioPlayer),
+            child: QueueScreen(playerService: widget.audioPlayer),
           ),
         ),
       ),
@@ -67,13 +72,113 @@ class NowPlayingScreen extends StatelessWidget {
     return repeatMode == LoopMode.off ? Colors.white : const Color(0xFFF5D505);
   }
 
+  void _showTrackOptions(BuildContext context, Song currentTrack) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    image: DecorationImage(
+                      image: NetworkImage(currentTrack.image),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        currentTrack.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        currentTrack.primaryArtists,
+                        style: TextStyle(color: Colors.grey[400]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.grey, height: 1),
+          ListTile(
+            leading: const Icon(Icons.download, color: Color(0xFFF5D505)),
+            title: const Text('Download in Browser', style: TextStyle(color: Colors.white)),
+            onTap: () async {
+              Navigator.pop(context);
+              await _downloadInBrowser(currentTrack);
+            },
+          ),
+          ListTile(
+            leading: const Icon(
+              Icons.playlist_add,
+              color: Color(0xFFF5D505),
+            ),
+            title: const Text(
+              'Add to Playlist',
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              _showPlaylistSelection(context, currentTrack);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _downloadInBrowser(Song song) async {
+    final Uri url = Uri.parse(song.mediaUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open browser for download'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$minutes:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: StreamBuilder<Song?>(
-          stream: audioPlayer.currentSongStream,
+          stream: widget.audioPlayer.currentSongStream,
           builder: (context, snapshot) {
             final currentTrack = snapshot.data;
             if (currentTrack == null) {
@@ -122,7 +227,7 @@ class NowPlayingScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         StreamBuilder<Duration?>(
-                          stream: audioPlayer.positionStream,
+                          stream: widget.audioPlayer.positionStream,
                           builder: (context, snapshot) {
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 300),
@@ -205,11 +310,11 @@ class NowPlayingScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: StreamBuilder<Duration?>(
-                    stream: audioPlayer.positionStream,
+                    stream: widget.audioPlayer.positionStream,
                     builder: (context, positionSnapshot) {
                       final position = positionSnapshot.data ?? Duration.zero;
                       return StreamBuilder<Duration?>(
-                        stream: audioPlayer.durationStream,
+                        stream: widget.audioPlayer.durationStream,
                         builder: (context, durationSnapshot) {
                           final duration = durationSnapshot.data ?? Duration.zero;
                           final progress = duration.inMilliseconds > 0
@@ -227,7 +332,7 @@ class NowPlayingScreen extends StatelessWidget {
                                   activeColor: const Color(0xFFF5D505),
                                   inactiveColor: Colors.grey[800],
                                   onChanged: (value) {
-                                    audioPlayer.seekTo(Duration(milliseconds: value.toInt()));
+                                    widget.audioPlayer.seekTo(Duration(milliseconds: value.toInt()));
                                   },
                                 ),
                               ),
@@ -275,7 +380,7 @@ class NowPlayingScreen extends StatelessWidget {
                         children: [
                           // Shuffle Button
                           StreamBuilder<bool>(
-                            stream: audioPlayer.shuffleStream,
+                            stream: widget.audioPlayer.shuffleStream,
                             builder: (context, snapshot) {
                               final isShuffleOn = snapshot.data ?? false;
                               return IconButton(
@@ -284,7 +389,7 @@ class NowPlayingScreen extends StatelessWidget {
                                   color: isShuffleOn ? const Color(0xFFF5D505) : Colors.white,
                                   size: 26,
                                 ),
-                                onPressed: audioPlayer.toggleShuffle,
+                                onPressed: widget.audioPlayer.toggleShuffle,
                               );
                             },
                           ),
@@ -303,12 +408,12 @@ class NowPlayingScreen extends StatelessWidget {
                                 size: 32,
                               ),
                             ),
-                            onPressed: audioPlayer.playPrevious,
+                            onPressed: widget.audioPlayer.playPrevious,
                           ),
                           
                           // Play/Pause Button
                           StreamBuilder<PlayerState>(
-                            stream: audioPlayer.playerStateStream,
+                            stream: widget.audioPlayer.playerStateStream,
                             builder: (context, snapshot) {
                               final isPlaying = snapshot.data?.playing ?? false;
                               return Container(
@@ -337,7 +442,7 @@ class NowPlayingScreen extends StatelessWidget {
                                     color: Colors.black,
                                     size: 36,
                                   ),
-                                  onPressed: isPlaying ? audioPlayer.pause : audioPlayer.resume,
+                                  onPressed: isPlaying ? widget.audioPlayer.pause : widget.audioPlayer.resume,
                                 ),
                               );
                             },
@@ -357,12 +462,12 @@ class NowPlayingScreen extends StatelessWidget {
                                 size: 32,
                               ),
                             ),
-                            onPressed: audioPlayer.playNext,
+                            onPressed: widget.audioPlayer.playNext,
                           ),
                           
                           // Repeat Button
                           StreamBuilder<LoopMode>(
-                            stream: audioPlayer.loopModeStream,
+                            stream: widget.audioPlayer.loopModeStream,
                             builder: (context, snapshot) {
                               final repeatMode = snapshot.data ?? LoopMode.off;
                               return IconButton(
@@ -374,13 +479,13 @@ class NowPlayingScreen extends StatelessWidget {
                                 onPressed: () {
                                   switch (repeatMode) {
                                     case LoopMode.off:
-                                      audioPlayer.setLoopMode(LoopMode.all);
+                                      widget.audioPlayer.setLoopMode(LoopMode.all);
                                       break;
                                     case LoopMode.all:
-                                      audioPlayer.setLoopMode(LoopMode.one);
+                                      widget.audioPlayer.setLoopMode(LoopMode.one);
                                       break;
                                     case LoopMode.one:
-                                      audioPlayer.setLoopMode(LoopMode.off);
+                                      widget.audioPlayer.setLoopMode(LoopMode.off);
                                       break;
                                   }
                                 },
@@ -393,7 +498,7 @@ class NowPlayingScreen extends StatelessWidget {
                       // Queue Button
                       const SizedBox(height: 16),
                       StreamBuilder<List<Song>>(
-                        stream: audioPlayer.queueStream,
+                        stream: widget.audioPlayer.queueStream,
                         builder: (context, snapshot) {
                           final trackQueue = snapshot.data ?? [];
                           return GestureDetector(
@@ -431,7 +536,7 @@ class NowPlayingScreen extends StatelessWidget {
                 ),
                 // Audio Visualizer
                 StreamBuilder<PlayerState>(
-                  stream: audioPlayer.playerStateStream,
+                  stream: widget.audioPlayer.playerStateStream,
                   builder: (context, snapshot) {
                     final isPlaying = snapshot.data?.playing ?? false;
                     return AnimatedContainer(
@@ -448,130 +553,5 @@ class NowPlayingScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _showTrackOptions(BuildContext context, Song currentTrack) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    image: DecorationImage(
-                      image: NetworkImage(currentTrack.image),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        currentTrack.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        currentTrack.primaryArtists,
-                        style: TextStyle(color: Colors.grey[400]),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(color: Colors.grey, height: 1),
-          StreamBuilder<bool>(
-            stream: Stream.fromFuture(DownloadService().isDownloaded(currentTrack)),
-            builder: (context, snapshot) {
-              final isDownloaded = snapshot.data ?? false;
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ListTile(
-                    leading: Icon(
-                      isDownloaded ? Icons.download_done : Icons.download,
-                      color: const Color(0xFFF5D505),
-                    ),
-                    title: Text(
-                      isDownloaded ? 'Downloaded' : 'Download',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      if (!isDownloaded) {
-                        try {
-                          await DownloadService().downloadSong(
-                            currentTrack,
-                            onProgress: (progress) {
-                              // TODO: Show download progress
-                            },
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Track downloaded successfully'),
-                              backgroundColor: const Color(0xFFF5D505),
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error downloading track: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.playlist_add,
-                      color: Color(0xFFF5D505),
-                    ),
-                    title: const Text(
-                      'Add to Playlist',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showPlaylistSelection(context, currentTrack);
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDuration(Duration duration) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final minutes = twoDigits(duration.inMinutes.remainder(60));
-    final seconds = twoDigits(duration.inSeconds.remainder(60));
-    return '$minutes:$seconds';
   }
 }

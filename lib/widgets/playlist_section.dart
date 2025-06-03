@@ -69,19 +69,11 @@ class _PlaylistSectionState extends State<PlaylistSection> {
   Future<void> _handleDownload(Song song) async {
     try {
       if (!(_downloadedSongs[song.id] ?? false)) {
-        await _downloadService.downloadSong(
-          song,
-          onProgress: (progress) {
-            // TODO: Show download progress
-          },
-        );
-        setState(() {
-          _downloadedSongs[song.id] = true;
-        });
+        await _downloadService.showDownloadOptions(context, song);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Song downloaded successfully'),
+              content: Text('Download started'),
             ),
           );
         }

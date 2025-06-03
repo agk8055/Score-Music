@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import '../services/music_player_service.dart';
-import '../services/download_service.dart';
 import '../services/playlist_service.dart';
 import '../models/song.dart';
 import '../screens/queue_screen.dart';
 import '../screens/now_playing_screen.dart';
 import '../widgets/playlist_selection_dialog.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MusicController extends StatelessWidget {
   final MusicPlayerService playerService;
@@ -43,6 +43,18 @@ class MusicController extends StatelessWidget {
         songId: song.id,
       ),
     );
+  }
+
+  Future<void> _downloadInBrowser(BuildContext context, Song song) async {
+    final Uri url = Uri.parse(song.mediaUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open browser for download'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -280,63 +292,26 @@ class MusicController extends StatelessWidget {
                                   builder: (context) => Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      StreamBuilder<bool>(
-                                        stream: Stream.fromFuture(DownloadService().isDownloaded(song)),
-                                        builder: (context, snapshot) {
-                                          final isDownloaded = snapshot.data ?? false;
-                                          return Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              ListTile(
-                                                leading: Icon(
-                                                  isDownloaded ? Icons.download_done : Icons.download,
-                                                  color: const Color(0xFFF5D505),
-                                                ),
-                                                title: Text(
-                                                  isDownloaded ? 'Downloaded' : 'Download',
-                                                  style: const TextStyle(color: Colors.white),
-                                                ),
-                                                onTap: () async {
-                                                  Navigator.pop(context);
-                                                  if (!isDownloaded) {
-                                                    try {
-                                                      await DownloadService().downloadSong(
-                                                        song,
-                                                        onProgress: (progress) {
-                                                          // TODO: Show download progress
-                                                        },
-                                                      );
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text('Song downloaded successfully'),
-                                                        ),
-                                                      );
-                                                    } catch (e) {
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        SnackBar(
-                                                          content: Text('Error downloading song: $e'),
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                },
-                                              ),
-                                              ListTile(
-                                                leading: const Icon(
-                                                  Icons.playlist_add,
-                                                  color: Color(0xFFF5D505),
-                                                ),
-                                                title: const Text(
-                                                  'Add to Playlist',
-                                                  style: TextStyle(color: Colors.white),
-                                                ),
-                                                onTap: () {
-                                                  Navigator.pop(context);
-                                                  _showAddToPlaylistDialog(context, song);
-                                                },
-                                              ),
-                                            ],
-                                          );
+                                      ListTile(
+                                        leading: const Icon(Icons.download, color: Color(0xFFF5D505)),
+                                        title: const Text('Download in Browser', style: TextStyle(color: Colors.white)),
+                                        onTap: () async {
+                                          Navigator.pop(context);
+                                          await _downloadInBrowser(context, song);
+                                        },
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(
+                                          Icons.playlist_add,
+                                          color: Color(0xFFF5D505),
+                                        ),
+                                        title: const Text(
+                                          'Add to Playlist',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          _showAddToPlaylistDialog(context, song);
                                         },
                                       ),
                                     ],

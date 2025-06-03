@@ -5,9 +5,9 @@ import '../models/song.dart';
 import '../services/music_player_service.dart';
 import '../services/playlist_service.dart';
 import '../services/api_service.dart';
-import '../services/download_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/bottom_navigation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class UserPlaylistDetailsScreen extends StatefulWidget {
   final UserPlaylist playlist;
@@ -31,10 +31,6 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
   bool _isLoading = true;
   String? _error;
   String? _playlistImage;
-
-  // Download progress tracking
-  final Map<String, double> _downloadProgress = {};
-  String? _downloadingSongId;
 
   @override
   void initState() {
@@ -117,6 +113,20 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
       widget.playerService.playSong(_songs[0]);
       for (var i = 1; i < _songs.length; i++) {
         widget.playerService.addToQueue(_songs[i]);
+      }
+    }
+  }
+
+  Future<void> _downloadInBrowser(Song song) async {
+    final Uri url = Uri.parse(song.mediaUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open browser for download'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -310,34 +320,22 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
                                   SizedBox(
                                     width: 64,
                                     height: 64,
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(4),
-                                          child: Image.network(
-                                            song.image,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.network(
+                                        song.image,
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
                                             width: 56,
                                             height: 56,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, error, stackTrace) {
-                                              return Container(
-                                                width: 56,
-                                                height: 56,
-                                                color: Colors.grey[800],
-                                                child: const Icon(Icons.music_note),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        if (_downloadingSongId == song.id && _downloadProgress[song.id] != null)
-                                          CircularProgressIndicator(
-                                            value: _downloadProgress[song.id],
-                                            strokeWidth: 4,
-                                            backgroundColor: Colors.white24,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF5D505)),
-                                          ),
-                                      ],
+                                            color: Colors.grey[800],
+                                            child: const Icon(Icons.music_note),
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -358,37 +356,7 @@ class _UserPlaylistDetailsScreenState extends State<UserPlaylistDetailsScreen> {
                                   } else if (value == 'add_to_queue') {
                                     _addToQueue(song);
                                   } else if (value == 'download') {
-                                    setState(() {
-                                      _downloadingSongId = song.id;
-                                      _downloadProgress[song.id] = 0.0;
-                                    });
-                                    final downloadService = DownloadService();
-                                    try {
-                                      await downloadService.downloadSong(
-                                        song,
-                                        onProgress: (progress) {
-                                          setState(() {
-                                            _downloadProgress[song.id] = progress;
-                                          });
-                                        },
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Song downloaded successfully'),
-                                        ),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Download failed: $e'),
-                                        ),
-                                      );
-                                    } finally {
-                                      setState(() {
-                                        _downloadingSongId = null;
-                                        _downloadProgress.remove(song.id);
-                                      });
-                                    }
+                                    await _downloadInBrowser(song);
                                   } else if (value == 'remove') {
                                     await _removeSongFromPlaylist(song);
                                   }

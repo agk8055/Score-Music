@@ -3,12 +3,11 @@ import '../models/album.dart';
 import '../models/song.dart';
 import '../services/api_service.dart';
 import '../services/music_player_service.dart';
-import '../services/download_service.dart';
 import '../services/playlist_service.dart';
 import '../widgets/base_scaffold.dart';
 import '../widgets/bottom_navigation.dart';
 import '../widgets/skeleton_loader.dart';
-import 'package:dio/dio.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/play_history_service.dart';
 import '../services/search_cache_service.dart';
@@ -39,11 +38,6 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
   String? _error;
   int _currentPage = 0;
   static const int _songsPerPage = 10;
-
-  // Download progress tracking
-  final Map<String, double> _downloadProgress = {};
-  String? _downloadingSongId;
-  final Map<String, CancelToken> _cancelTokens = {};
 
   @override
   void initState() {
@@ -132,6 +126,20 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
               label: 'Retry',
               onPressed: _loadMoreSongs,
             ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadInBrowser(Song song) async {
+    final Uri url = Uri.parse(song.mediaUrl);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open browser for download'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -395,18 +403,6 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                           );
                                         },
                                       ),
-                                      if (_downloadingSongId == song.id && _downloadProgress[song.id] != null)
-                                        Container(
-                                          color: Colors.black54,
-                                          child: Center(
-                                            child: CircularProgressIndicator(
-                                              value: _downloadProgress[song.id],
-                                              strokeWidth: 3,
-                                              backgroundColor: Colors.white24,
-                                              valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFF5D505)),
-                                            ),
-                                          ),
-                                        ),
                                     ],
                                   ),
                                 ),
@@ -434,7 +430,7 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                   showModalBottomSheet(
                                     context: context,
                                     backgroundColor: Colors.grey[900],
-                                    shape: const RoundedRectangleBorder(
+                                    shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                                     ),
                                     builder: (context) {
@@ -471,58 +467,10 @@ class _AlbumDetailsScreenState extends State<AlbumDetailsScreen> {
                                             ),
                                             ListTile(
                                               leading: const Icon(Icons.download, color: Colors.white),
-                                              title: const Text('Download', style: TextStyle(color: Colors.white)),
+                                              title: const Text('Download in Browser', style: TextStyle(color: Colors.white)),
                                               onTap: () async {
                                                 Navigator.pop(context);
-                                                setState(() {
-                                                  _downloadingSongId = song.id;
-                                                  _downloadProgress[song.id] = 0.0;
-                                                });
-                                                final downloadService = DownloadService();
-                                                final cancelToken = CancelToken();
-                                                _cancelTokens[song.id] = cancelToken;
-                                                try {
-                                                  await downloadService.downloadSong(
-                                                    song,
-                                                    onProgress: (progress) {
-                                                      setState(() {
-                                                        _downloadProgress[song.id] = progress;
-                                                      });
-                                                    },
-                                                    cancelToken: cancelToken,
-                                                  );
-                                                  if (!cancelToken.isCancelled) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(
-                                                        content: const Text('Song downloaded successfully'),
-                                                        backgroundColor: const Color(0xFFF5D505),
-                                                        behavior: SnackBarBehavior.floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                } catch (e) {
-                                                  if (!cancelToken.isCancelled) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text('Download failed: ${e.toString()}'),
-                                                        backgroundColor: Colors.red,
-                                                        behavior: SnackBarBehavior.floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius: BorderRadius.circular(8),
-                                                        ),
-                                                      ),
-                                                    );
-                                                  }
-                                                } finally {
-                                                  setState(() {
-                                                    _downloadingSongId = null;
-                                                    _downloadProgress.remove(song.id);
-                                                    _cancelTokens.remove(song.id);
-                                                  });
-                                                }
+                                                await _downloadInBrowser(song);
                                               },
                                             ),
                                           ],
