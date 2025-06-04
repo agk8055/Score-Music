@@ -42,6 +42,7 @@ dependencies:
   dio: ^5.4.0
   rxdart: ^0.27.7
   wave: ^0.2.0
+  connectivity_plus: ^5.0.2
   
   
 
