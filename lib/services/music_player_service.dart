@@ -7,6 +7,7 @@ import '../models/song.dart';
 import '../models/album.dart';
 import '../models/playlist.dart';
 import 'play_history_service.dart';
+import 'package:flutter/foundation.dart';
 
 class MusicPlayerService {
   late final AudioPlayer _audioPlayer;
@@ -21,19 +22,43 @@ class MusicPlayerService {
   final List<Song> _historyStack = [];
   final _queueController = StreamController<List<Song>>.broadcast();
   final _shuffleController = StreamController<bool>.broadcast();
+  final _errorController = StreamController<String?>.broadcast();
+  bool _isDisposed = false;
 
   MusicPlayerService(this._historyService) {
-    // Initialize the audio player
-    _audioPlayer = AudioPlayer(
-      androidApplyAudioAttributes: true,
-    );
+    // Initialize the audio player with error handling
+    try {
+      _audioPlayer = AudioPlayer(
+        androidApplyAudioAttributes: true,
+      );
 
-    // Listen for song completion
-    _audioPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
-        playNext();
-      }
-    });
+      // Listen for song completion
+      _audioPlayer.playerStateStream.listen(
+        (state) {
+          if (state.processingState == ProcessingState.completed) {
+            playNext();
+          }
+        },
+        onError: (error) {
+          debugPrint('Error in player state stream: $error');
+          _errorController.add('Playback error: $error');
+        },
+      );
+
+      // Listen for player errors
+      _audioPlayer.playbackEventStream.listen(
+        (event) {},
+        onError: (error) {
+          debugPrint('Error in playback event stream: $error');
+          _errorController.add('Playback error: $error');
+          _handlePlaybackError();
+        },
+      );
+    } catch (e) {
+      debugPrint('Error initializing audio player: $e');
+      _errorController.add('Failed to initialize audio player: $e');
+      rethrow;
+    }
   }
 
   Song? get currentSong => _currentSong;
@@ -49,6 +74,7 @@ class MusicPlayerService {
   Stream<LoopMode> get loopModeStream => _audioPlayer.loopModeStream;
   Stream<bool> get shuffleStream => _shuffleController.stream.startWith(_isShuffleOn);
   bool get isPlaying => _audioPlayer.playing;
+  Stream<String?> get errorStream => _errorController.stream;
 
   void toggleShuffle() {
     _isShuffleOn = !_isShuffleOn;
@@ -71,30 +97,61 @@ class MusicPlayerService {
     _queueController.add(_queue);
   }
 
-  Future<void> playSong(Song song, {Album? album, Playlist? playlist}) async {
-    if (_currentSong?.id == song.id && _isInitialized) {
-      if (_audioPlayer.playing) {
-        await _audioPlayer.pause();
-      } else {
-        await _audioPlayer.play();
-      }
-      return;
-    }
-
-    // Stop current playback and reset
-    await _audioPlayer.stop();
-    _isInitialized = false;
-
-    // Add current song to history stack if it exists
-    if (_currentSong != null) {
-      _historyStack.add(_currentSong!);
-    }
-
-    _currentSong = song;
-    _currentAlbum = album;
-    _currentPlaylist = playlist;
-    _currentSongController.add(song);
+  void _handlePlaybackError() async {
+    if (_isDisposed) return;
+    
     try {
+      // Try to recover from the error
+      if (_currentSong != null) {
+        // Stop current playback
+        await _audioPlayer.stop();
+        _isInitialized = false;
+
+        // Try to reload the current song
+        await Future.delayed(const Duration(seconds: 1));
+        if (!_isDisposed && _currentSong != null) {
+          await playSong(_currentSong!);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error recovering from playback error: $e');
+      _errorController.add('Failed to recover from playback error: $e');
+    }
+  }
+
+  Future<void> playSong(Song song, {Album? album, Playlist? playlist}) async {
+    if (_isDisposed) return;
+
+    if (_currentSong?.id == song.id && _isInitialized) {
+      try {
+        if (_audioPlayer.playing) {
+          await _audioPlayer.pause();
+        } else {
+          await _audioPlayer.play();
+        }
+        return;
+      } catch (e) {
+        debugPrint('Error toggling playback: $e');
+        _errorController.add('Failed to toggle playback: $e');
+        return;
+      }
+    }
+
+    try {
+      // Stop current playback and reset
+      await _audioPlayer.stop();
+      _isInitialized = false;
+
+      // Add current song to history stack if it exists
+      if (_currentSong != null) {
+        _historyStack.add(_currentSong!);
+      }
+
+      _currentSong = song;
+      _currentAlbum = album;
+      _currentPlaylist = playlist;
+      _currentSongController.add(song);
+
       // Create media item for background playback
       final mediaItem = MediaItem(
         id: song.id,
@@ -107,22 +164,36 @@ class MusicPlayerService {
         displayDescription: album?.title,
       );
 
-      // Set the audio source with media item
+      // Set the audio source with media item and timeout
       await _audioPlayer.setAudioSource(
         AudioSource.uri(
           Uri.parse(song.mediaUrl),
           tag: mediaItem,
         ),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Failed to load audio source');
+        },
       );
       
       _isInitialized = true;
       await _audioPlayer.play();
       await _historyService.addToHistory(song, album: album, playlist: playlist);
     } catch (e) {
-      print('Error playing song: $e');
+      debugPrint('Error playing song: $e');
+      _errorController.add('Failed to play song: $e');
       _isInitialized = false;
       _currentSong = null;
       _currentSongController.add(null);
+      
+      // Try to recover if it's a network error
+      if (e is TimeoutException || e.toString().contains('SocketException')) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!_isDisposed && song.id == _currentSong?.id) {
+          await playSong(song, album: album, playlist: playlist);
+        }
+      }
     }
   }
 
@@ -268,10 +339,17 @@ class MusicPlayerService {
     await _audioPlayer.setLoopMode(mode);
   }
 
+  @override
   Future<void> dispose() async {
-    await _currentSongController.close();
-    await _queueController.close();
-    await _shuffleController.close();
-    await _audioPlayer.dispose();
+    _isDisposed = true;
+    try {
+      await _currentSongController.close();
+      await _queueController.close();
+      await _shuffleController.close();
+      await _errorController.close();
+      await _audioPlayer.dispose();
+    } catch (e) {
+      debugPrint('Error disposing MusicPlayerService: $e');
+    }
   }
 } 

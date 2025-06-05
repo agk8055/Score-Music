@@ -101,16 +101,78 @@ class SearchStateProvider extends ChangeNotifier {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize just_audio_background
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.score.music',
-    androidNotificationChannelName: 'Score Music',
-    androidNotificationOngoing: true,
-    androidNotificationIcon: 'drawable/ic_notification',
-    androidShowNotificationBadge: true,
-    androidStopForegroundOnPause: true,
-  );
+  // Initialize just_audio_background with proper error handling
+  bool audioServiceInitialized = false;
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.score.music',
+      androidNotificationChannelName: 'Score Music',
+      androidNotificationOngoing: true,
+      androidNotificationIcon: 'drawable/ic_notification',
+      androidShowNotificationBadge: true,
+      androidStopForegroundOnPause: true,
+    );
+    audioServiceInitialized = true;
+    debugPrint('Audio service initialized successfully');
+  } catch (e, stack) {
+    debugPrint('Audio service initialization failed: $e');
+    debugPrint('Stack trace: $stack');
+    // Show error UI for audio service failure
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Failed to initialize audio service',
+                  style: TextStyle(color: Colors.red, fontSize: 18),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'This may affect music playback functionality.\nPlease try reinstalling the app.',
+                  style: TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Try to reinitialize audio service
+                    try {
+                      await JustAudioBackground.init(
+                        androidNotificationChannelId: 'com.score.music',
+                        androidNotificationChannelName: 'Score Music',
+                        androidNotificationOngoing: true,
+                        androidNotificationIcon: 'drawable/ic_notification',
+                        androidShowNotificationBadge: true,
+                        androidStopForegroundOnPause: true,
+                      );
+                      audioServiceInitialized = true;
+                      // Restart the app
+                      runApp(await _initializeApp());
+                    } catch (e) {
+                      debugPrint('Audio service reinitialization failed: $e');
+                    }
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
 
+  // Continue with app initialization
+  runApp(await _initializeApp());
+}
+
+// Separate app initialization into a function for better organization
+Future<Widget> _initializeApp() async {
   // Enable verbose logging
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -142,20 +204,56 @@ void main() async {
   } catch (e) {
     debugPrint('SharedPreferences initialization failed: $e');
     // Show error UI if SharedPreferences fails
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text(
-              'Failed to initialize app storage: $e\n\nPlease try reinstalling the app.',
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Failed to initialize app storage',
+                style: TextStyle(color: Colors.red, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Error: $e\n\nPlease try reinstalling the app.',
+                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  // Try to reinitialize SharedPreferences
+                  try {
+                    prefs = await SharedPreferences.getInstance();
+                    // Restart the app
+                    runApp(await _initializeApp());
+                  } catch (e) {
+                    debugPrint('SharedPreferences reinitialization failed: $e');
+                  }
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
       ),
     );
-    return;
+  }
+
+  if (prefs == null) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text(
+            'Failed to initialize app storage\n\nPlease try reinstalling the app.',
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
   }
 
   // Initialize services with error handling
@@ -167,26 +265,43 @@ void main() async {
     final playlistService = PlaylistService(prefs);
     
     debugPrint('All services initialized successfully');
-    runApp(MyApp(
+    return MyApp(
       prefs: prefs,
       playerService: playerService,
       historyService: historyService,
       searchCacheService: searchCacheService,
       searchStateProvider: searchStateProvider,
       playlistService: playlistService,
-    ));
+    );
   } catch (e, stack) {
     debugPrint('Service initialization failed: $e');
     debugPrint('Stack trace: $stack');
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text(
-              'Failed to initialize app services: $e\n\nPlease try reinstalling the app.',
-              style: const TextStyle(color: Colors.red),
-              textAlign: TextAlign.center,
-            ),
+    return MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Failed to initialize app services',
+                style: TextStyle(color: Colors.red, fontSize: 18),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Error: $e\n\nPlease try reinstalling the app.',
+                style: const TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () async {
+                  // Try to reinitialize services
+                  runApp(await _initializeApp());
+                },
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
       ),
