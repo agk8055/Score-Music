@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'screens/search_screen.dart';
 import 'screens/about_screen.dart';
 import 'screens/home_screen.dart';
@@ -97,23 +100,120 @@ class SearchStateProvider extends ChangeNotifier {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final prefs = await SharedPreferences.getInstance();
-  runApp(MyApp(prefs: prefs));
-}
 
-class MyApp extends StatelessWidget {
-  final SharedPreferences prefs;
+  // Initialize just_audio_background
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.score.music',
+    androidNotificationChannelName: 'Score Music',
+    androidNotificationOngoing: true,
+    androidNotificationIcon: 'drawable/ic_notification',
+    androidShowNotificationBadge: true,
+    androidStopForegroundOnPause: true,
+  );
+
+  // Enable verbose logging
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
   
-  const MyApp({super.key, required this.prefs});
+  // Handle async errors
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Async Error: $error');
+    debugPrint('Stack trace: $stack');
+    return true;
+  };
 
-  @override
-  Widget build(BuildContext context) {
+  // Initialize API service first
+  try {
+    await ApiService.initialize();
+    debugPrint('API Service initialized successfully');
+  } catch (e) {
+    debugPrint('API Service initialization failed: $e');
+    // Continue anyway, as the app can work offline
+  }
+  
+  // Initialize SharedPreferences with error handling
+  SharedPreferences? prefs;
+  try {
+    prefs = await SharedPreferences.getInstance();
+    debugPrint('SharedPreferences initialized successfully');
+  } catch (e) {
+    debugPrint('SharedPreferences initialization failed: $e');
+    // Show error UI if SharedPreferences fails
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Failed to initialize app storage: $e\n\nPlease try reinstalling the app.',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+
+  // Initialize services with error handling
+  try {
     final historyService = PlayHistoryService(prefs);
     final playerService = MusicPlayerService(historyService);
     final searchCacheService = SearchCacheService(prefs);
     final searchStateProvider = SearchStateProvider(searchCacheService);
     final playlistService = PlaylistService(prefs);
     
+    debugPrint('All services initialized successfully');
+    runApp(MyApp(
+      prefs: prefs,
+      playerService: playerService,
+      historyService: historyService,
+      searchCacheService: searchCacheService,
+      searchStateProvider: searchStateProvider,
+      playlistService: playlistService,
+    ));
+  } catch (e, stack) {
+    debugPrint('Service initialization failed: $e');
+    debugPrint('Stack trace: $stack');
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Failed to initialize app services: $e\n\nPlease try reinstalling the app.',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MyApp extends StatelessWidget {
+  final SharedPreferences prefs;
+  final MusicPlayerService playerService;
+  final PlayHistoryService historyService;
+  final SearchCacheService searchCacheService;
+  final SearchStateProvider searchStateProvider;
+  final PlaylistService playlistService;
+  
+  const MyApp({
+    super.key,
+    required this.prefs,
+    required this.playerService,
+    required this.historyService,
+    required this.searchCacheService,
+    required this.searchStateProvider,
+    required this.playlistService,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Score',
@@ -174,12 +274,15 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late int _selectedIndex;
+  late ConnectivityResult _connectivityResult;
+  late StreamSubscription<ConnectivityResult> _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
     _checkFirstLaunch();
+    _initConnectivity();
   }
 
   Future<void> _checkFirstLaunch() async {
@@ -243,8 +346,53 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<void> _initConnectivity() async {
+    _connectivityResult = await Connectivity().checkConnectivity();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      if (_connectivityResult != result) {
+        _connectivityResult = result;
+        if (result == ConnectivityResult.none) {
+          _showOfflineNotification();
+        } else {
+          _showOnlineNotification();
+          if (_selectedIndex == 0) {
+            // Reload home page when coming back online
+            setState(() {});
+          }
+        }
+      }
+    });
+  }
+
+  void _showOfflineNotification() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You are offline'),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(8),
+      ),
+    );
+  }
+
+  void _showOnlineNotification() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('You are back online'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(8),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _connectivitySubscription.cancel();
     widget.playerService.dispose();
     super.dispose();
   }

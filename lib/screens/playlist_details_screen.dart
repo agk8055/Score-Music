@@ -65,21 +65,47 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
   }
 
   Future<void> _loadPlaylist() async {
+    if (!mounted) return;
+    
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
-
+      // Set playlist data immediately if available
       if (widget.initialPlaylist != null) {
         _playlist = widget.initialPlaylist;
       } else {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+
         if (_cacheService.hasCachedPlaylist(widget.playlistUrl)) {
-          _playlist = _cacheService.getCachedPlaylist(widget.playlistUrl);
+          if (!mounted) return;
+          setState(() {
+            _playlist = _cacheService.getCachedPlaylist(widget.playlistUrl);
+          });
         } else {
-          _playlist = await _apiService.getPlaylistDetails(widget.playlistUrl);
-          _cacheService.cachePlaylist(_playlist!);
+          final playlist = await _apiService.getPlaylistDetails(widget.playlistUrl);
+          if (!mounted) return;
+          setState(() {
+            _playlist = playlist;
+          });
+          _cacheService.cachePlaylist(playlist);
         }
+      }
+
+      if (_playlist == null) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Failed to load playlist';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Always show loading state while fetching songs
+      if (widget.initialPlaylist == null) {
+        setState(() {
+          _isLoading = true;
+        });
       }
 
       final initialSongIds = _playlist!.contentList.sublist(0, _songsPerPage);
@@ -92,17 +118,20 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
         
         if (missingIds.isNotEmpty) {
           final newSongs = await _apiService.getPlaylistSongs(missingIds);
+          if (!mounted) return;
           _cacheService.cacheSongs(newSongs);
           initialSongs.addAll(newSongs);
         }
       }
 
+      if (!mounted) return;
       setState(() {
         _songs = initialSongs;
         _isLoading = false;
         _currentPage = 1;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -223,9 +252,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
             )
           : _playlist == null
               ? const Center(child: Text('Playlist not found'))
-              : _isLoading
-                  ? _buildSkeletonLoader()
-                  : CustomScrollView(
+              : CustomScrollView(
                   controller: _scrollController,
                   physics: const BouncingScrollPhysics(),
                   slivers: [
@@ -323,7 +350,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                             children: [
                               Expanded(
                                 child: ElevatedButton.icon(
-                                  onPressed: () {
+                                  onPressed: _songs.isEmpty ? null : () {
                                     if (_songs.isNotEmpty) {
                                       widget.playerService.playSong(_songs[0], playlist: _playlist);
                                       for (var i = 1; i < _songs.length; i++) {
@@ -351,7 +378,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: IconButton(
-                                  onPressed: () {},
+                                  onPressed: _songs.isEmpty ? null : () {},
                                   icon: const Icon(Icons.shuffle, color: Color(0xFFF5D505)),
                                   padding: const EdgeInsets.all(16),
                                 ),
@@ -360,7 +387,7 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            '${_songs.length} Songs',
+                            '${_playlist!.contentList.length} Songs',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,

@@ -36,12 +36,14 @@ dependencies:
   cupertino_icons: ^1.0.2
   http: ^1.1.0
   just_audio: ^0.9.36
+  just_audio_background: ^0.0.1-beta.11
   url_launcher: ^6.2.4
   shared_preferences: ^2.5.3
   path_provider: ^2.0.15
   dio: ^5.4.0
   rxdart: ^0.27.7
   wave: ^0.2.0
+  connectivity_plus: ^5.0.2
   
   
 

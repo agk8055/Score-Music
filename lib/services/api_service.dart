@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
 import '../models/album.dart';
 import '../models/playlist.dart';
+import 'dart:async';
 
 class ApiService {
   static const String defaultBaseUrl = 'https://jiosaavnapi-tyye.onrender.com/';
@@ -128,24 +129,47 @@ class ApiService {
   }
 
   Future<List<Song>> getPlaylistSongs(List<String> songIds) async {
-    try {
-      final songs = <Song>[];
-      for (final id in songIds) {
+    final songs = <Song>[];
+    final maxRetries = 3;
+    final retryDelay = const Duration(seconds: 1);
+
+    for (final id in songIds) {
+      int retryCount = 0;
+      while (retryCount < maxRetries) {
         try {
           final response = await http.get(
             Uri.parse('$baseUrl/song/get/?id=$id'),
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw TimeoutException('Request timed out');
+            },
           );
+
           if (response.statusCode == 200) {
             final Map<String, dynamic> data = json.decode(response.body);
             songs.add(Song.fromJson(data));
+            break; // Success, exit retry loop
+          } else if (response.statusCode >= 500) {
+            // Server error, retry
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await Future.delayed(retryDelay * retryCount);
+              continue;
+            }
           }
+          // For other status codes, don't retry
+          break;
         } catch (e) {
-          print('Error fetching song $id: $e');
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await Future.delayed(retryDelay * retryCount);
+            continue;
+          }
+          print('Error fetching song $id after $maxRetries retries: $e');
         }
       }
-      return songs;
-    } catch (e) {
-      throw Exception('Error loading playlist songs: $e');
     }
+    return songs;
   }
 } 

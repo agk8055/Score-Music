@@ -1,4 +1,5 @@
-import 'package:just_audio/just_audio.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+import 'package:just_audio/just_audio.dart' show AudioPlayer, LoopMode, ProcessingState, PlayerState, AudioSource;
 import 'dart:async';
 import 'dart:math';
 import 'package:rxdart/rxdart.dart';
@@ -8,7 +9,7 @@ import '../models/playlist.dart';
 import 'play_history_service.dart';
 
 class MusicPlayerService {
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  late final AudioPlayer _audioPlayer;
   final PlayHistoryService _historyService;
   Song? _currentSong;
   Album? _currentAlbum;
@@ -22,6 +23,11 @@ class MusicPlayerService {
   final _shuffleController = StreamController<bool>.broadcast();
 
   MusicPlayerService(this._historyService) {
+    // Initialize the audio player
+    _audioPlayer = AudioPlayer(
+      androidApplyAudioAttributes: true,
+    );
+
     // Listen for song completion
     _audioPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
@@ -89,7 +95,26 @@ class MusicPlayerService {
     _currentPlaylist = playlist;
     _currentSongController.add(song);
     try {
-      await _audioPlayer.setUrl(song.mediaUrl);
+      // Create media item for background playback
+      final mediaItem = MediaItem(
+        id: song.id,
+        album: album?.title ?? 'Unknown Album',
+        title: song.title,
+        artist: song.artist,
+        artUri: Uri.parse(song.image),
+        displayTitle: song.title,
+        displaySubtitle: song.artist,
+        displayDescription: album?.title,
+      );
+
+      // Set the audio source with media item
+      await _audioPlayer.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(song.mediaUrl),
+          tag: mediaItem,
+        ),
+      );
+      
       _isInitialized = true;
       await _audioPlayer.play();
       await _historyService.addToHistory(song, album: album, playlist: playlist);
@@ -174,7 +199,26 @@ class MusicPlayerService {
     _currentSongController.add(nextSong);
     
     try {
-      await _audioPlayer.setUrl(nextSong.mediaUrl);
+      // Create media item for background playback
+      final mediaItem = MediaItem(
+        id: nextSong.id,
+        album: _currentAlbum?.title ?? 'Unknown Album',
+        title: nextSong.title,
+        artist: nextSong.artist,
+        artUri: Uri.parse(nextSong.image),
+        displayTitle: nextSong.title,
+        displaySubtitle: nextSong.artist,
+        displayDescription: _currentAlbum?.title,
+      );
+
+      // Set the audio source with media item
+      await _audioPlayer.setAudioSource(
+        AudioSource.uri(
+          Uri.parse(nextSong.mediaUrl),
+          tag: mediaItem,
+        ),
+      );
+      
       _isInitialized = true;
       await _audioPlayer.play();
       await _historyService.addToHistory(nextSong);
